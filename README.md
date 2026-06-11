@@ -12,7 +12,7 @@ No engine download, no install, no build step — one HTML file, a few JS module
 - **Pointer-lock FPS movement** — WASD, jump, real AABB collision, you can hop up onto the low crates
 - **Bunny hopping** — keep moving and hold Space: each hop chained within 0.25s of landing banks speed, up to 1.9× (a speedometer fades in under the crosshair). Airborne spread triples, so it's speed *or* accuracy
 - **Game feel** — walk bob with camera sway, viewmodel wobble, per-shot visual recoil (muzzle rise), and a subtle FOV stretch at bhop speed
-- **"Quadra" — a favela futsal-court map** — three east-west lanes: a fenced futsal court as mid (chain-link is low enough to shoot over, vault it from a crate), top and bottom flank lanes behind painted building rows, walkable rooftops via crate steps, and spawn-screen buildings so neither team gets sniped off the pad — all under a tropical sky ringed by green morros (and one Sugarloaf-shaped one)
+- **"Quadra Tavares Bastos" — a FIFA Street-style favela court map** — three east-west lanes: a fenced futsal court as mid (full markings, goals, sponsor banners — the chain-link is low enough to shoot over, vault it from a crate), top and bottom flank lanes behind painted building rows, walkable rooftops via crate steps (one with a Brazil-flag roof), water tanks, clotheslines, murals, and the favela itself climbing the hillsides beyond the walls — all generated geometry and canvas textures, zero asset files
 - **5 weapons + knife + HE grenade** — an oitão (.38 revolver), a hand cannon, an SMG, a parafal (FAL rifle), a bolt sniper with a working scope (RMB), and a throwable HE shaped like a coxinha: it arcs, bounces, stands up on its flat base, then detonates
 - **Exotic gun skins** — every weapon wears a Destiny-inspired (but original) exotic frame with glowing energy accents; tracers and muzzle flash match each weapon's energy color
 - **The CS economy** — $800 pistol round, kill rewards ($300 rifle / $600 SMG / $1500 knife / $100 sniper), win and loss bonuses, $16,000 cap
@@ -35,7 +35,7 @@ No engine download, no install, no build step — one HTML file, a few JS module
 | HE Grenade | Coxinha | Deep-fried golden-brown |
 
 There are also console cheats in the spirit of `sv_cheats 1` — open devtools and try
-`impulse101()` (max money) or `cs_give('rifle')`.
+`impulse101()` (max money), `cs_give('rifle')`, or `cs_tp(x, z, yaw)`.
 
 ## Controls
 

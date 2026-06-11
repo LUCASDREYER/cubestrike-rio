@@ -47,7 +47,20 @@ export const MAP_BOXES = [
   // the court: painted slab + chain-link fence (1.3 high: see and shoot over,
   // vault from a crate). Entry gaps mid-west and mid-east carry the mid lane.
   [0, 0, 36, 26, 0.04, 0, 'court'],
-  [0, 0, 36, 0.5, 0.02, 0.04, 'line'],          // halfway line
+  [0, 0, 36, 0.5, 0.02, 0.04, 'line'],           // halfway line
+  // painted boundary + goal areas + penalty spots (futsal markings)
+  [0, -12.6, 36, 0.4, 0.02, 0.04, 'line'],
+  [0, 12.6, 36, 0.4, 0.02, 0.04, 'line'],
+  [-17.6, 0, 0.4, 26, 0.02, 0.04, 'line'],
+  [17.6, 0, 0.4, 26, 0.02, 0.04, 'line'],
+  [0, -10, 8, 0.4, 0.02, 0.04, 'line'],
+  [-4, -11.5, 0.4, 3, 0.02, 0.04, 'line'],
+  [4, -11.5, 0.4, 3, 0.02, 0.04, 'line'],
+  [0, 10, 8, 0.4, 0.02, 0.04, 'line'],
+  [-4, 11.5, 0.4, 3, 0.02, 0.04, 'line'],
+  [4, 11.5, 0.4, 3, 0.02, 0.04, 'line'],
+  [0, -8, 0.5, 0.5, 0.02, 0.04, 'line'],
+  [0, 8, 0.5, 0.5, 0.02, 0.04, 'line'],
   [0, -13, 36.6, 0.6, 1.3, 0, 'fence'],          // north fence
   [0, 13, 36.6, 0.6, 1.3, 0, 'fence'],           // south fence
   [-18, -7.75, 0.6, 10.5, 1.3, 0, 'fence'],      // west fence, gap at z -2.5..2.5

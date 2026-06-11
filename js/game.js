@@ -102,10 +102,11 @@ const WALLS = []; // { min:Vector3, max:Vector3 }
 let boxIdx = 0;
 for (const [x, z, w, d, h, y, kind] of MAP_BOXES) {
   const palette = KIND_PALETTE[kind];
-  const mesh = new THREE.Mesh(
-    new THREE.BoxGeometry(w, h, d),
-    new THREE.MeshLambertMaterial({ color: palette[boxIdx++ % palette.length] }),
-  );
+  // the court gets worn, speckled concrete instead of a flat color
+  const mat = kind === 'court'
+    ? new THREE.MeshLambertMaterial({ map: speckleTexture('#c9a83a', '#85702e', 8) })
+    : new THREE.MeshLambertMaterial({ color: palette[boxIdx++ % palette.length] });
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
   mesh.position.set(x, y + h / 2, z);
   mesh.castShadow = !DECAL_KINDS.has(kind);
   mesh.receiveShadow = true;
@@ -148,6 +149,141 @@ for (const [x, z, r, h, color] of MORROS) {
   m.position.set(x, 0, z);
   scene.add(m);
 }
+
+// ---------------------------------------------------------------- set dressing
+// Quadra Tavares Bastos flavor: goals and banners on the court, murals, rooftop
+// clutter, and the favela climbing the hillsides beyond the walls. All of it is
+// generated geometry + canvas textures — scenery only, no collision, no files.
+
+const seededRnd = (() => { let s = 7; return () => (s = (s * 16807) % 2147483647) / 2147483647; })();
+
+function bannerTexture(text, bg, fg, w = 256, fontPx = 22) {
+  const c = document.createElement('canvas');
+  c.width = w;
+  c.height = 64;
+  const g = c.getContext('2d');
+  g.fillStyle = bg;
+  g.fillRect(0, 0, w, 64);
+  g.strokeStyle = fg;
+  g.lineWidth = 4;
+  g.strokeRect(4, 4, w - 8, 56);
+  g.fillStyle = fg;
+  g.font = `bold ${fontPx}px Verdana`;
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.fillText(text, w / 2, 34);
+  return new THREE.CanvasTexture(c);
+}
+
+// futsal goals on the north/south ends of the court
+const goalMat = new THREE.MeshLambertMaterial({ color: 0xf2f2ea });
+for (const zs of [-12.4, 12.4]) {
+  const goal = new THREE.Group();
+  for (const xs of [-1.5, 1.5]) {
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.3, 8), goalMat);
+    post.position.set(xs, 0.65, 0);
+    goal.add(post);
+  }
+  const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 3.12, 8), goalMat);
+  bar.rotation.z = Math.PI / 2;
+  bar.position.y = 1.3;
+  goal.add(bar);
+  goal.position.set(0, 0, zs);
+  scene.add(goal);
+}
+
+// sponsor-style banners zip-tied to the fence, murals on the buildings
+const FLAT_DECOR = [
+  // [text, bg, fg, w, h, x, y, z, rotY, canvasW, fontPx]
+  ['TAVARES BASTOS', '#1c4e9c', '#f6d23a', 4.4, 1.0, -8, 0.62, -12.62, 0, 256, 22],
+  ['FUTEBOL DE RUA', '#149b44', '#f6d23a', 4.4, 1.0, 8, 0.62, -12.62, 0, 256, 22],
+  ['RIO DE JANEIRO', '#b3402f', '#f2e8c8', 4.4, 1.0, -8, 0.62, 12.62, Math.PI, 256, 22],
+  ['VAI BRASIL', '#f6d23a', '#149b44', 4.4, 1.0, 8, 0.62, 12.62, Math.PI, 256, 22],
+  ['★ QUADRA TAVARES BASTOS ★', '#7a3f8c', '#ffd23a', 18, 3, 0, 2.4, -19.46, 0, 512, 34],
+  ['FUTEBOL DE RUA ★ RIO', '#2f6f86', '#f2e8c8', 18, 3, 0, 2.4, 19.46, Math.PI, 512, 34],
+];
+for (const [text, bg, fg, w, h, x, y, z, ry, cw, fpx] of FLAT_DECOR) {
+  const m = new THREE.Mesh(
+    new THREE.PlaneGeometry(w, h),
+    new THREE.MeshLambertMaterial({ map: bannerTexture(text, bg, fg, cw, fpx) }),
+  );
+  m.position.set(x, y, z);
+  m.rotation.y = ry;
+  scene.add(m);
+}
+
+// blue water tanks on the rooftops
+const tankMat = new THREE.MeshLambertMaterial({ color: 0x2a6db8 });
+for (const [x, z] of [[-36, -21], [6, -21], [-28, 21], [12, 21], [36, 21], [-38, 1], [38, -2]]) {
+  const t = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.7, 0.9, 10), tankMat);
+  t.position.set(x, 4.95, z);
+  t.castShadow = true;
+  scene.add(t);
+}
+
+// Brazil-flag painted roof on the northeast building (visible from the rooftops)
+const flagGreen = new THREE.Mesh(new THREE.BoxGeometry(10, 0.06, 3), new THREE.MeshLambertMaterial({ color: 0x149b44 }));
+flagGreen.position.set(32, 4.53, -21);
+scene.add(flagGreen);
+const flagDiamond = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.06, 1.9), new THREE.MeshLambertMaterial({ color: 0xf6d23a }));
+flagDiamond.rotation.y = Math.PI / 4;
+flagDiamond.position.set(32, 4.57, -21);
+scene.add(flagDiamond);
+const flagCircle = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 0.06, 16), new THREE.MeshLambertMaterial({ color: 0x1c4e9c }));
+flagCircle.position.set(32, 4.61, -21);
+scene.add(flagCircle);
+
+// the favela climbing the hillsides beyond the east and north walls
+const housePalette = KIND_PALETTE.wall;
+function hillsideHouse(x, y, z, i) {
+  const w = 5 + seededRnd() * 5;
+  const d = 5 + seededRnd() * 4;
+  const h = 3 + seededRnd() * 3;
+  const m = new THREE.Mesh(
+    new THREE.BoxGeometry(w, h, d),
+    new THREE.MeshLambertMaterial({ color: housePalette[i % housePalette.length] }),
+  );
+  m.position.set(x, y + h / 2, z);
+  scene.add(m);
+  if (seededRnd() < 0.3) {
+    const t = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.7, 0.9, 8), tankMat);
+    t.position.set(x, y + h + 0.45, z);
+    scene.add(t);
+  }
+}
+for (let tier = 0; tier < 4; tier++) {
+  for (let i = 0; i < 12; i++) {
+    // east hillside, behind Team 2 spawn
+    hillsideHouse(64 + tier * 8 + seededRnd() * 3, tier * 2.6, -50 + i * 9 + seededRnd() * 4, i * 3 + tier);
+    // north hillside
+    hillsideHouse(-60 + i * 10 + seededRnd() * 4, tier * 2.6, -47 - tier * 8 - seededRnd() * 3, i * 5 + tier * 2);
+  }
+}
+
+// clotheslines strung across the flank lanes
+const clothPalette = [0xe3b54a, 0x6fbf8e, 0xd98a9e, 0xeef2ff, 0x5f9ec9];
+function clothesline(x1, y1, z1, x2, y2, z2, n) {
+  const a = new THREE.Vector3(x1, y1, z1);
+  const b = new THREE.Vector3(x2, y2, z2);
+  const line = new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints([a, b]),
+    new THREE.LineBasicMaterial({ color: 0x44403a }),
+  );
+  scene.add(line);
+  for (let i = 1; i <= n; i++) {
+    const t = i / (n + 1);
+    const cloth = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.55, 0.7),
+      new THREE.MeshLambertMaterial({ color: clothPalette[i % clothPalette.length], side: THREE.DoubleSide }),
+    );
+    cloth.position.lerpVectors(a, b, t);
+    cloth.position.y -= 0.38;
+    cloth.rotation.y = Math.atan2(x2 - x1, z2 - z1) + Math.PI / 2;
+    scene.add(cloth);
+  }
+}
+clothesline(-32, 4.4, -22.6, -32, 4.8, -40.8, 4);
+clothesline(8, 4.4, 22.6, 8, 4.8, 40.8, 5);
 
 // Ray vs AABB (slab method). Returns distance along dir, or null.
 function rayBox(o, d, box, maxT) {
@@ -1317,7 +1453,7 @@ function purchase(i) {
 // ---------------------------------------------------------------- scoreboard
 function renderScoreboard() {
   const botRows = bots.map((b) => `<tr class="${b.alive ? '' : 'dead'}"><td>${b.name}</td><td>T</td><td>${b.alive ? 'alive' : 'dead'}</td></tr>`).join('');
-  els.scoreboard.innerHTML = `<h2>CUBESTRIKE: RIO — CT ${ctScore} : ${tScore} T</h2>
+  els.scoreboard.innerHTML = `<h2>QUADRA TAVARES BASTOS — CT ${ctScore} : ${tScore} T</h2>
     <table><tr><th>PLAYER</th><th>TEAM</th><th>STATUS</th></tr>
     <tr class="you"><td>you · ${player.kills}K / ${player.deaths}D</td><td>CT</td><td>${player.alive ? 'alive' : 'dead'}</td></tr>
     ${botRows}</table>`;
@@ -1462,6 +1598,13 @@ window.cs_give = (id) => {
   giveWeapon(id);
   updateHUD();
   return WEAPONS[id].skin;
+};
+window.cs_tp = (x, z, yaw = player.yaw) => {
+  player.pos.set(x, 0, z);
+  player.vy = 0;
+  player.yaw = yaw;
+  player.pitch = 0;
+  return `tp ${x}, ${z}`;
 };
 
 buildViewModel('pistol');
