@@ -483,10 +483,20 @@ function vmBox(g, w, h, d, x, y, z, color, glow = 0) {
   return m;
 }
 
-function vmCyl(g, r, len, x, y, z, color, { glow = 0, seg = 12, axis = 'z' } = {}) {
-  const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, seg), vmMat(color, glow));
+// r2 tapers the far end (muzzle side for axis 'z', bottom for axis 'y')
+function vmCyl(g, r, len, x, y, z, color, { glow = 0, seg = 12, axis = 'z', r2 = r } = {}) {
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r2, len, seg), vmMat(color, glow));
   if (axis === 'z') m.rotation.x = Math.PI / 2;
   else if (axis === 'x') m.rotation.z = Math.PI / 2;
+  m.position.set(x, y, z);
+  g.add(m);
+  return m;
+}
+
+// ring in the vertical plane along the barrel (trigger guards, sight rings)
+function vmTorus(g, r, tube, x, y, z, color, { glow = 0, seg = 14 } = {}) {
+  const m = new THREE.Mesh(new THREE.TorusGeometry(r, tube, 6, seg), vmMat(color, glow));
+  m.rotation.y = Math.PI / 2;
   m.position.set(x, y, z);
   g.add(m);
   return m;
@@ -525,12 +535,23 @@ function buildViewModel(id) {
     vmBox(vmGroup, 0.014, 0.022, 0.3, 0, 0.028, -0.17, PLATE);             // spine
     vmBox(vmGroup, 0.01, 0.05, 0.3, 0, -0.005, -0.17, energy, 1.4);        // blade
   } else if (id === 'pistol') {
-    // Pale Vestige — kinetic sidearm
-    vmBox(vmGroup, 0.07, 0.09, 0.28, 0, 0.02, -0.06, GUNMETAL);
-    vmBox(vmGroup, 0.075, 0.035, 0.3, 0, 0.085, -0.07, PLATE);             // slide
-    vmBox(vmGroup, 0.078, 0.01, 0.18, 0, 0.062, -0.08, energy, 1.2);       // energy slit
-    vmCyl(vmGroup, 0.015, 0.05, 0, 0.06, -0.235, PLATE);                   // barrel
-    vmBox(vmGroup, 0.06, 0.13, 0.07, 0, -0.07, 0.05, IVORY);               // grip
+    // Oitão — snub-nose .38 revolver with wood grips, yawed so the profile reads
+    const g = new THREE.Group();
+    g.rotation.y = 0.18;
+    g.scale.setScalar(0.85);
+    g.position.z = -0.04;
+    vmGroup.add(g);
+    vmBox(g, 0.05, 0.07, 0.22, 0, 0.025, 0.0, GUNMETAL);                   // frame
+    vmCyl(g, 0.038, 0.08, 0, 0.04, -0.06, PLATE, { seg: 14 });             // cylinder drum
+    vmCyl(g, 0.017, 0.2, 0, 0.055, -0.2, GUNMETAL, { seg: 14, r2: 0.014 }); // tapered barrel
+    vmBox(g, 0.012, 0.016, 0.18, 0, 0.075, -0.2, PLATE);                   // top rib
+    vmCyl(g, 0.006, 0.14, 0, 0.03, -0.19, PLATE, { seg: 8 });              // ejector rod
+    vmCyl(g, 0.014, 0.01, 0, 0.055, -0.295, energy, { glow: 1.3, seg: 12 }); // muzzle ring
+    vmBox(g, 0.007, 0.016, 0.01, 0, 0.088, -0.275, energy, 1.2);           // front sight
+    vmBox(g, 0.016, 0.03, 0.02, 0, 0.07, 0.1, GUNMETAL);                   // hammer
+    vmTorus(g, 0.026, 0.006, 0, -0.022, 0.04, GUNMETAL);                   // trigger guard
+    vmCyl(g, 0.025, 0.09, 0, -0.06, 0.08, 0x6b4226, { seg: 10, axis: 'y', r2: 0.031 })
+      .rotation.x = -0.35;                                                 // wood grip, swept back
   } else if (id === 'deagle') {
     // Sundown Verdict — solar hand cannon
     vmBox(vmGroup, 0.07, 0.08, 0.32, 0, 0.035, -0.1, GUNMETAL);
@@ -553,16 +574,26 @@ function buildViewModel(id) {
     vmBox(vmGroup, 0.05, 0.16, 0.06, 0, -0.12, -0.02, PLATE);              // mag
     vmBox(vmGroup, 0.05, 0.07, 0.12, 0, -0.01, 0.12, GUNMETAL);            // stock
   } else if (id === 'rifle') {
-    // Void Doctrine — void auto rifle
-    vmBox(vmGroup, 0.08, 0.1, 0.55, 0, 0, -0.18, GUNMETAL);
-    vmBox(vmGroup, 0.06, 0.04, 0.42, 0, 0.075, -0.18, PLATE);              // top rail
-    vmBox(vmGroup, 0.085, 0.045, 0.09, 0, 0.01, -0.02, energy, 1.3);       // void core
-    vmCyl(vmGroup, 0.018, 0.26, 0, 0.02, -0.57, PLATE);                    // barrel
-    vmBox(vmGroup, 0.05, 0.05, 0.06, 0, 0.02, -0.71, GUNMETAL);            // muzzle brake
-    vmBox(vmGroup, 0.052, 0.012, 0.06, 0, 0.048, -0.71, energy, 1.3);
-    vmBox(vmGroup, 0.083, 0.012, 0.16, 0, 0.038, -0.32, energy, 0.9);      // vent slit
-    vmBox(vmGroup, 0.05, 0.17, 0.07, 0, -0.125, -0.06, PLATE).rotation.x = 0.25; // canted mag
-    vmBox(vmGroup, 0.045, 0.06, 0.1, 0, -0.07, -0.34, GUNMETAL);           // foregrip
+    // Parafal — FAL silhouette: long tapered barrel, gas tube, wood furniture
+    const WOOD = 0x5f452a;
+    const g = new THREE.Group();
+    g.rotation.y = 0.12;
+    vmGroup.add(g);
+    vmBox(g, 0.065, 0.09, 0.38, 0, 0, -0.04, GUNMETAL);                    // receiver
+    vmCyl(g, 0.03, 0.28, 0, -0.005, -0.36, WOOD, { seg: 12, r2: 0.024 });  // wood handguard
+    vmCyl(g, 0.012, 0.32, 0, 0, -0.63, GUNMETAL, { seg: 12, r2: 0.01 });   // long barrel
+    vmCyl(g, 0.015, 0.09, 0, 0, -0.81, PLATE, { seg: 10 });                // muzzle brake
+    vmCyl(g, 0.017, 0.012, 0, 0, -0.86, energy, { glow: 1.3, seg: 10 });   // muzzle glow
+    vmCyl(g, 0.008, 0.26, 0, 0.045, -0.36, PLATE, { seg: 8 });             // gas tube
+    vmBox(g, 0.012, 0.05, 0.012, 0, 0.07, -0.5, GUNMETAL);                 // front sight post
+    vmBox(g, 0.014, 0.022, 0.05, 0, 0.058, 0.1, PLATE);                    // rear sight
+    vmBox(g, 0.012, 0.008, 0.16, 0, 0.052, -0.04, energy, 0.9);            // receiver energy line
+    vmBox(g, 0.042, 0.125, 0.055, 0, -0.1, -0.13, PLATE).rotation.x = 0.15; // 20-rd mag
+    vmCyl(g, 0.02, 0.09, 0, -0.07, 0.05, WOOD, { seg: 8, axis: 'y', r2: 0.025 })
+      .rotation.x = -0.45;                                                 // wood pistol grip
+    const stock = vmCyl(g, 0.036, 0.2, 0, -0.01, 0.22, WOOD, { seg: 10, r2: 0.022 });
+    stock.scale.x = 0.65;                                                  // flattened oval stock
+    vmBox(g, 0.05, 0.085, 0.02, 0, -0.01, 0.325, GUNMETAL);                // butt plate
   } else if (id === 'sniper') {
     // Stargazer's Lament — stasis rail sniper
     vmBox(vmGroup, 0.08, 0.1, 0.6, 0, 0, -0.18, GUNMETAL);
@@ -1238,7 +1269,7 @@ function renderBuyMenu() {
       ? player.armor >= 100
       : (player.load[WEAPONS[item.id].slot]?.id === item.id);
     const afford = player.money >= spec.price;
-    const skin = item.id === 'armor' ? '' : ` <em>${WEAPONS[item.id].skin}</em>`;
+    const skin = item.id === 'armor' || spec.skin === spec.name ? '' : ` <em>${WEAPONS[item.id].skin}</em>`;
     return `<div class="buy-item ${afford ? '' : 'dim'} ${owned ? 'owned' : ''}">
       <span class="key">${i + 1}</span><span class="name">${spec.name}${skin}</span>
       <span class="price">$${spec.price}</span></div>`;

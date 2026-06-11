@@ -4,10 +4,10 @@
 // shown in the HUD, energy tints the glow accents, tracers, and muzzle flash.
 export const WEAPONS = {
   knife:  { name: 'Knife',      skin: 'Jaguara',          energy: 0x35e06a, slot: 'knife',     price: 0,    dmg: 55,  rpm: 150, mag: Infinity, reserve: Infinity, spread: 0,     reload: 0,   auto: false, melee: true,  recoil: 0,   killAward: 1500 },
-  pistol: { name: 'P9 Sidearm', skin: 'Canarinho',        energy: 0xffdf2e, slot: 'secondary', price: 0,    dmg: 26,  rpm: 360, mag: 12, reserve: 36,  spread: 0.014, reload: 1.9, auto: false, melee: false, recoil: 0.5, killAward: 300 },
+  pistol: { name: 'Oitão',      skin: 'Oitão',            energy: 0xffdf2e, slot: 'secondary', price: 0,    dmg: 26,  rpm: 360, mag: 12, reserve: 36,  spread: 0.014, reload: 1.9, auto: false, melee: false, recoil: 0.5, killAward: 300 },
   deagle: { name: 'Big Iron',   skin: 'Pé de Ferro',      energy: 0xffb030, slot: 'secondary', price: 650,  dmg: 54,  rpm: 240, mag: 7,  reserve: 35,  spread: 0.020, reload: 2.2, auto: false, melee: false, recoil: 1.6, killAward: 300 },
   smg:    { name: 'Wasp SMG',   skin: 'Carnaval',         energy: 0xff4fd8, slot: 'primary',   price: 1250, dmg: 17,  rpm: 780, mag: 25, reserve: 100, spread: 0.030, reload: 2.4, auto: true,  melee: false, recoil: 0.4, killAward: 600 },
-  rifle:  { name: 'Bulldog AR', skin: 'Verde-Amarela',    energy: 0x21d34f, slot: 'primary',   price: 2700, dmg: 34,  rpm: 600, mag: 30, reserve: 90,  spread: 0.022, reload: 2.5, auto: true,  melee: false, recoil: 0.7, killAward: 300 },
+  rifle:  { name: 'Parafal',    skin: 'Parafal',          energy: 0x21d34f, slot: 'primary',   price: 2700, dmg: 34,  rpm: 600, mag: 30, reserve: 90,  spread: 0.022, reload: 2.5, auto: true,  melee: false, recoil: 0.7, killAward: 300 },
   sniper: { name: 'Long Tom',   skin: 'Cristo Redentor',  energy: 0x8fd8ff, slot: 'primary',   price: 4750, dmg: 115, rpm: 41,  mag: 5,  reserve: 30,  spread: 0.050, reload: 3.2, auto: false, melee: false, recoil: 2.4, killAward: 100 },
   // HE grenade: `dmg` is at the blast center, falling off linearly to `radius`.
   nade:   { name: 'HE Grenade', skin: 'Coxinha',          energy: 0xe09a3a, slot: 'nade',      price: 300,  dmg: 95,  rpm: 60,  mag: 1,  reserve: 0,   spread: 0,     reload: 0,   auto: false, melee: false, recoil: 0,   killAward: 300, grenade: true, radius: 7, fuse: 1.6, throwSpeed: 16 },

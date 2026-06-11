@@ -13,7 +13,7 @@ No engine download, no install, no build step — one HTML file, a few JS module
 - **Bunny hopping** — keep moving and hold Space: each hop chained within 0.25s of landing banks speed, up to 1.9× (a speedometer fades in under the crosshair). Airborne spread triples, so it's speed *or* accuracy
 - **Game feel** — walk bob with camera sway, viewmodel wobble, per-shot visual recoil (muzzle rise), and a subtle FOV stretch at bhop speed
 - **A favela-painted blockout map** — mid doors, two side lanes, crates, and long sightlines under a tropical sky, ringed by green morros (and one Sugarloaf-shaped one)
-- **5 weapons + knife + HE grenade** — pistol, hand cannon, SMG, auto rifle, a bolt sniper with a working scope (RMB), and a throwable HE shaped like a coxinha: it arcs, bounces, stands up on its flat base, then detonates
+- **5 weapons + knife + HE grenade** — an oitão (.38 revolver), a hand cannon, an SMG, a parafal (FAL rifle), a bolt sniper with a working scope (RMB), and a throwable HE shaped like a coxinha: it arcs, bounces, stands up on its flat base, then detonates
 - **Exotic gun skins** — every weapon wears a Destiny-inspired (but original) exotic frame with glowing energy accents; tracers and muzzle flash match each weapon's energy color
 - **The CS economy** — $800 pistol round, kill rewards ($300 rifle / $600 SMG / $1500 knife / $100 sniper), win and loss bonuses, $16,000 cap
 - **Buy menu** — press the number keys during the buy phase, just like 1.6
@@ -26,10 +26,10 @@ No engine download, no install, no build step — one HTML file, a few JS module
 
 | Weapon | Exotic skin | Energy |
 |---|---|---|
-| P9 Sidearm | Canarinho | Seleção yellow |
+| Oitão | — (.38 revolver, wood grips) | Seleção yellow |
 | Big Iron | Pé de Ferro | Amber |
 | Wasp SMG | Carnaval | Carnival magenta |
-| Bulldog AR | Verde-Amarela | Flag green |
+| Parafal | — (FAL, wood furniture) | Flag green |
 | Long Tom | Cristo Redentor | Dawn-sky blue |
 | Knife | Jaguara | Jungle green |
 | HE Grenade | Coxinha | Deep-fried golden-brown |
