@@ -9,6 +9,8 @@ export const WEAPONS = {
   smg:    { name: 'Wasp SMG',   skin: 'Carnaval',         energy: 0xff4fd8, slot: 'primary',   price: 1250, dmg: 17,  rpm: 780, mag: 25, reserve: 100, spread: 0.030, reload: 2.4, auto: true,  melee: false, recoil: 0.4, killAward: 600 },
   rifle:  { name: 'Bulldog AR', skin: 'Verde-Amarela',    energy: 0x21d34f, slot: 'primary',   price: 2700, dmg: 34,  rpm: 600, mag: 30, reserve: 90,  spread: 0.022, reload: 2.5, auto: true,  melee: false, recoil: 0.7, killAward: 300 },
   sniper: { name: 'Long Tom',   skin: 'Cristo Redentor',  energy: 0x8fd8ff, slot: 'primary',   price: 4750, dmg: 115, rpm: 41,  mag: 5,  reserve: 30,  spread: 0.050, reload: 3.2, auto: false, melee: false, recoil: 2.4, killAward: 100 },
+  // HE grenade: `dmg` is at the blast center, falling off linearly to `radius`.
+  nade:   { name: 'HE Grenade', skin: 'Coxinha',          energy: 0xe09a3a, slot: 'nade',      price: 300,  dmg: 95,  rpm: 60,  mag: 1,  reserve: 0,   spread: 0,     reload: 0,   auto: false, melee: false, recoil: 0,   killAward: 300, grenade: true, radius: 7, fuse: 1.6, throwSpeed: 16 },
 };
 
 // Buy menu rows, in key order (1..n). 'armor' is special-cased.
@@ -17,6 +19,7 @@ export const BUY_ITEMS = [
   { id: 'smg' },
   { id: 'rifle' },
   { id: 'sniper' },
+  { id: 'nade' },
   { id: 'armor', name: 'Kevlar Vest', price: 650 },
 ];
 

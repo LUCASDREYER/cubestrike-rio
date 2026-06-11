@@ -248,7 +248,7 @@ const player = {
   pos: new THREE.Vector3(PLAYER_SPAWN.x, 0, PLAYER_SPAWN.z),
   vy: 0, yaw: PLAYER_SPAWN.yaw, pitch: 0, grounded: true,
   hp: 100, armor: 0, money: ECON.start, alive: true, speedMult: 1,
-  load: { primary: null, secondary: null, knife: { id: 'knife' } },
+  load: { primary: null, secondary: null, knife: { id: 'knife' }, nade: null },
   cur: 'secondary',
   cooldown: 0, reloading: 0, switchT: 0, zoomed: false,
   kills: 0, deaths: 0, shots: 0, hits: 0,
@@ -261,6 +261,7 @@ function freshInst(id) {
 function resetLoadout() {
   player.load.primary = null;
   player.load.secondary = freshInst('pistol');
+  player.load.nade = null;
   player.cur = 'secondary';
 }
 
@@ -496,6 +497,22 @@ const PLATE = 0x3a3d45;
 const GOLD = 0xc9a227;
 const IVORY = 0xd8d2c2;
 
+// Coxinha: deep golden-brown teardrop — flat rounded base (so it stands up),
+// round belly, pointed tip. Lathe profile is [radius, height] pairs, base to tip.
+const COXINHA_BROWN = 0xa9611e;
+const COXINHA_GEO = new THREE.LatheGeometry(
+  [[0, 0], [0.05, 0], [0.066, 0.025], [0.07, 0.06], [0.058, 0.1], [0.034, 0.14], [0.012, 0.175], [0, 0.19]]
+    .map(([r, y]) => new THREE.Vector2(r, y)),
+  20,
+);
+
+function coxinhaMesh(scale) {
+  const m = new THREE.Mesh(COXINHA_GEO, new THREE.MeshLambertMaterial({ color: COXINHA_BROWN }));
+  m.scale.setScalar(scale);
+  m.castShadow = true;
+  return m;
+}
+
 // Exotic skins: angular sci-fi frames with emissive energy accents per weapon.
 function buildViewModel(id) {
   vmGroup.clear();
@@ -558,6 +575,12 @@ function buildViewModel(id) {
     vmBox(vmGroup, 0.012, 0.07, 0.1, 0.05, -0.02, 0.06, energy, 0.8);      // crystal fins
     vmBox(vmGroup, 0.012, 0.07, 0.1, -0.05, -0.02, 0.06, energy, 0.8);
     vmBox(vmGroup, 0.05, 0.09, 0.14, 0, -0.03, 0.1, PLATE);                // stock
+  } else if (id === 'nade') {
+    // Coxinha — the deep-fried HE, tilted back in the palm with the tip up
+    const cox = coxinhaMesh(1.4);
+    cox.position.set(0, -0.1, -0.02);
+    cox.rotation.x = 0.3;
+    vmGroup.add(cox);
   }
   vmGroup.visible = true;
 }
@@ -587,6 +610,19 @@ function fire() {
     const origin = camera.position;
     const hit = hitScan(origin, dir, 2.6);
     if (hit && hit.bot) hurtBot(hit.bot, spec.dmg * (hit.head ? 4 : 1), hit.head, 'knife');
+    return;
+  }
+
+  if (spec.grenade) {
+    player.cooldown = 0.4;
+    vmKick = 0.12;
+    vmPitchKick = -0.3;
+    throwGrenade(spec);
+    player.load.nade = null;
+    player.cur = player.load.primary ? 'primary' : 'secondary';
+    player.switchT = 0.5;
+    buildViewModel(curInst().id);
+    updateHUD();
     return;
   }
 
@@ -698,6 +734,119 @@ function killBot(bot, head, weaponId) {
   addKillfeed(`you ⟶ ${bot.name}${head ? ' [HEAD]' : ''}  +$${award}`);
   updateHUD();
   if (bots.every((b) => !b.alive) && state === 'live') endRound(true);
+}
+
+// ---------------------------------------------------------------- grenades
+const grenades = [];
+const NADE_R = 0.12;
+const boomLight = new THREE.PointLight(0xffb060, 0, 26);
+scene.add(boomLight);
+
+function pointInWalls(p, r) {
+  for (const b of WALLS) {
+    if (p.x + r > b.min.x && p.x - r < b.max.x
+      && p.y + r > b.min.y && p.y - r < b.max.y
+      && p.z + r > b.min.z && p.z - r < b.max.z) return true;
+  }
+  return false;
+}
+
+function throwGrenade(spec) {
+  const fwd = camera.getWorldDirection(_v2).clone();
+  const mesh = coxinhaMesh(1.6);
+  const pos = camera.position.clone().addScaledVector(fwd, 0.6);
+  mesh.position.copy(pos);
+  scene.add(mesh);
+  grenades.push({
+    mesh, spec, pos,
+    vel: fwd.multiplyScalar(spec.throwSpeed).add(_v1.set(0, 2.5, 0)),
+    fuse: spec.fuse,
+    spin: 4 + Math.random() * 6,
+  });
+  sfx.toss();
+}
+
+function clearGrenades() {
+  for (const g of grenades) scene.remove(g.mesh);
+  grenades.length = 0;
+  boomLight.intensity = 0;
+}
+
+function updateGrenades(dt) {
+  boomLight.intensity *= Math.pow(0.0001, dt);
+  if (boomLight.intensity < 0.05) boomLight.intensity = 0;
+  for (let i = grenades.length - 1; i >= 0; i--) {
+    const g = grenades[i];
+    g.fuse -= dt;
+    if (g.fuse <= 0) {
+      grenades.splice(i, 1);
+      explode(g);
+      continue;
+    }
+    g.vel.y += GRAVITY * dt;
+    // axis-by-axis move with bounce, same AABB list the bullets use
+    g.pos.x += g.vel.x * dt;
+    if (pointInWalls(g.pos, NADE_R)) { g.pos.x -= g.vel.x * dt; g.vel.x *= -0.45; }
+    g.pos.z += g.vel.z * dt;
+    if (pointInWalls(g.pos, NADE_R)) { g.pos.z -= g.vel.z * dt; g.vel.z *= -0.45; }
+    g.pos.y += g.vel.y * dt;
+    if (pointInWalls(g.pos, NADE_R)) { g.pos.y -= g.vel.y * dt; g.vel.y *= -0.5; g.vel.x *= 0.75; g.vel.z *= 0.75; }
+    if (g.pos.y < NADE_R) {
+      g.pos.y = NADE_R;
+      g.vel.y *= -0.45;
+      g.vel.x *= 0.72;
+      g.vel.z *= 0.72;
+      if (Math.abs(g.vel.y) < 0.8) g.vel.y = 0;
+    }
+    g.mesh.position.copy(g.pos);
+    if (g.vel.lengthSq() > 1) {
+      g.mesh.rotation.x += g.spin * dt;
+      g.mesh.rotation.z += g.spin * 0.6 * dt;
+    } else {
+      // at rest a coxinha rights itself onto its base, as is proper
+      g.mesh.rotation.x *= Math.pow(0.01, dt);
+      g.mesh.rotation.z *= Math.pow(0.01, dt);
+    }
+  }
+}
+
+function explode(g) {
+  scene.remove(g.mesh);
+  const { dmg, radius } = g.spec;
+  const px = g.pos.x;
+  const py = g.pos.y + 0.2;
+  const pz = g.pos.z;
+  sfx.explode();
+  boomLight.position.set(px, py + 0.5, pz);
+  boomLight.intensity = 6;
+  spawnParticles(g.pos, 0xffb347, 40, 9);
+  spawnParticles(g.pos, 0x8a4a16, 26, 6); // fried crumbs
+  spawnParticles(g.pos, 0xfff0c0, 12, 12);
+
+  // linear falloff to the blast radius; walls soak most of it
+  const blast = (tx, ty, tz) => {
+    const d = Math.hypot(tx - px, ty - py, tz - pz);
+    if (d > radius) return 0;
+    let f = 1 - d / radius;
+    if (d > 0.01) {
+      const dir = _v1.set(tx - px, ty - py, tz - pz).normalize();
+      if (rayWalls(_v2.set(px, py, pz), dir, d) !== null) f *= 0.35;
+    }
+    return dmg * f;
+  };
+
+  for (const bot of bots) {
+    if (!bot.alive) continue;
+    const d = blast(bot.pos.x, 1.0, bot.pos.z);
+    if (d > 0) {
+      bot.hp -= d;
+      bot.alert = true;
+      bot.flash(0.15);
+      if (bot.hp <= 0) killBot(bot, false, 'nade');
+    }
+  }
+  const pd = blast(player.pos.x, player.pos.y + 0.9, player.pos.z);
+  if (pd > 0) damagePlayer(pd);
 }
 
 // ---------------------------------------------------------------- bots
@@ -972,6 +1121,7 @@ function startRound() {
   }
   setZoom(false);
   buildViewModel(curInst().id);
+  clearGrenades();
   spawnBots();
   state = 'buy';
   tState = BUY_TIME;
@@ -1041,7 +1191,7 @@ function updateHUD() {
   const inst = curInst();
   const spec = WEAPONS[inst.id];
   setText(els.weapon, spec.skin.toUpperCase());
-  setText(els.ammo, spec.melee ? '—' : `${inst.mag} / ${inst.reserve}`);
+  setText(els.ammo, spec.melee ? '—' : spec.grenade ? `× ${inst.mag}` : `${inst.mag} / ${inst.reserve}`);
   els.ammo.classList.toggle('reloading', player.reloading > 0);
 }
 
@@ -1167,6 +1317,7 @@ document.addEventListener('keydown', (e) => {
     case 'Digit1': switchSlot('primary'); break;
     case 'Digit2': switchSlot('secondary'); break;
     case 'Digit3': switchSlot('knife'); break;
+    case 'Digit4': switchSlot('nade'); break;
     case 'KeyR': if (state === 'live') startReload(); break;
     case 'KeyB': openBuyMenu(!buyOpen); break;
   }
@@ -1225,6 +1376,7 @@ function loop(now) {
     vmGroup.visible = false;
   } else if (!paused) {
     updatePlayer(dt);
+    updateGrenades(dt);
     if (state === 'buy') {
       tState -= dt;
       if (tState <= 0) goLive();

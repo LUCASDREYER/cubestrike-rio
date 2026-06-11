@@ -68,6 +68,12 @@ export const sfx = {
     tone({ freq: 120, dur: 0.05, vol: k[2] * 0.5, type: 'square', slide: -60 });
   },
   knife() { burst({ freq: 3000, type: 'highpass', dur: 0.08, vol: 0.10 }); },
+  toss() { burst({ freq: 2200, type: 'highpass', dur: 0.12, vol: 0.08 }); },
+  explode() {
+    tone({ freq: 90, dur: 0.5, vol: 0.5, type: 'sawtooth', slide: -60 });
+    burst({ freq: 220, type: 'lowpass', dur: 0.45, vol: 0.5 });
+    burst({ freq: 1200, dur: 0.2, vol: 0.2, delay: 0.02 });
+  },
   dry() { tone({ freq: 1200, dur: 0.03, vol: 0.10 }); },
   reload() {
     tone({ freq: 500, dur: 0.04, vol: 0.12 });
