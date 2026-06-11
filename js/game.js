@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import {
   WEAPONS, BUY_ITEMS, ECON, BHOP, MATCH_WIN_ROUNDS, BUY_TIME, ROUND_TIME,
   MAP_BOXES, WAYPOINTS, WAY_EDGES, PLAYER_SPAWN, BOT_SPAWNS, BOT_NAMES,
+  CT_BOT_SPAWNS, CT_BOT_NAMES,
 } from './config.js';
 import { sfx } from './audio.js';
 
@@ -18,7 +19,35 @@ const els = {
   overlay: $('overlay'), overlayMsg: $('overlayMsg'),
   matchOverlay: $('matchOverlay'), matchResult: $('matchResult'),
   matchScore: $('matchScore'), matchStats: $('matchStats'), againBtn: $('againBtn'),
+  allyMinus: $('allyMinus'), allyPlus: $('allyPlus'), allyN: $('allyN'),
+  enemyMinus: $('enemyMinus'), enemyPlus: $('enemyPlus'), enemyN: $('enemyN'),
 };
+
+// ---------------------------------------------------------------- team setup
+// Menu-screen team sizes, capped at 5v5 (you + up to 4 allies vs 1-5 enemies).
+function readCount(key, def, min, max) {
+  const n = parseInt(localStorage.getItem(key) ?? '', 10);
+  return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : def;
+}
+const teamSetup = {
+  allies: readCount('cs_allies', 0, 0, CT_BOT_NAMES.length),
+  enemies: readCount('cs_enemies', 5, 1, BOT_NAMES.length),
+};
+function renderTeamSetup() {
+  els.allyN.textContent = String(teamSetup.allies);
+  els.enemyN.textContent = String(teamSetup.enemies);
+}
+function bumpTeam(e, key, delta, min, max) {
+  e.stopPropagation(); // the surrounding overlay click would grab pointer lock
+  teamSetup[key] = Math.min(max, Math.max(min, teamSetup[key] + delta));
+  localStorage.setItem('cs_' + key, String(teamSetup[key]));
+  renderTeamSetup();
+}
+els.allyMinus.addEventListener('click', (e) => bumpTeam(e, 'allies', -1, 0, CT_BOT_NAMES.length));
+els.allyPlus.addEventListener('click', (e) => bumpTeam(e, 'allies', 1, 0, CT_BOT_NAMES.length));
+els.enemyMinus.addEventListener('click', (e) => bumpTeam(e, 'enemies', -1, 1, BOT_NAMES.length));
+els.enemyPlus.addEventListener('click', (e) => bumpTeam(e, 'enemies', 1, 1, BOT_NAMES.length));
+renderTeamSetup();
 
 // ---------------------------------------------------------------- renderer / scene
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
@@ -614,7 +643,8 @@ function playerDie() {
   els.vignette.classList.add('dead');
   addKillfeed('Terrorists ⟶ you', true);
   banner('VOCÊ MORREU', '', true);
-  setTimeout(() => { if (state === 'live') endRound(false); }, 1700);
+  // with allies still up the round plays out; otherwise it's lost
+  setTimeout(() => checkTeamWipe(), 1700);
 }
 
 // ---------------------------------------------------------------- viewmodel
@@ -876,7 +906,7 @@ function hitScan(origin, dir, maxT) {
   const wallT = rayWalls(origin, dir, maxT);
   if (wallT !== null) best = { t: wallT, bot: null, head: false };
   for (const bot of bots) {
-    if (!bot.alive) continue;
+    if (!bot.alive || bot.team === 'ct') continue; // no friendly fire
     const headT = raySphere(origin, dir, _v1.set(bot.pos.x, 1.85, bot.pos.z), 0.3);
     const bodyBox = {
       min: _boxMin.set(bot.pos.x - 0.45, 0, bot.pos.z - 0.45),
@@ -925,7 +955,7 @@ function killBot(bot, head, weaponId) {
   sfx.kill();
   addKillfeed(`you ⟶ ${bot.name}${head ? ' [HEAD]' : ''}  +$${award}`);
   updateHUD();
-  if (bots.every((b) => !b.alive) && state === 'live') endRound(true);
+  checkTeamWipe();
 }
 
 // ---------------------------------------------------------------- grenades
@@ -1028,7 +1058,7 @@ function explode(g) {
   };
 
   for (const bot of bots) {
-    if (!bot.alive) continue;
+    if (!bot.alive || bot.team === 'ct') continue; // no friendly fire
     const d = blast(bot.pos.x, 1.0, bot.pos.z);
     if (d > 0) {
       bot.hp -= d;
@@ -1085,11 +1115,25 @@ const botGeo = {
   gun: new THREE.BoxGeometry(0.09, 0.11, 0.85),
 };
 
+// stand-in target so bots can treat the player like any other enemy
+const PLAYER_ENTITY = {
+  isPlayer: true,
+  name: 'you',
+  get pos() { return player.pos; },
+  get alive() { return player.alive; },
+};
+
+const TEAM_COLORS = {
+  t:  { torso: 0x8f7a4e, leg: 0x4a4438, band: 0xb03a2a, tracer: 0xffb060 },
+  ct: { torso: 0x4e6f9c, leg: 0x343c4a, band: 0x2a4ab0, tracer: 0x7ab8ff },
+};
+
 class Bot {
-  constructor(name, x, z) {
+  constructor(name, x, z, team) {
     this.name = name;
+    this.team = team;
     this.pos = new THREE.Vector3(x, 0, z);
-    this.yaw = Math.atan2(-(PLAYER_SPAWN.x - x), -(PLAYER_SPAWN.z - z));
+    this.yaw = Math.atan2(-(0 - x), -(0 - z)); // face mid
     this.hp = 100;
     this.alive = true;
     this.alert = false;
@@ -1105,10 +1149,11 @@ class Bot {
     this.walkT = Math.random() * 6;
 
     const g = new THREE.Group();
-    this.torsoMat = new THREE.MeshLambertMaterial({ color: 0x8f7a4e });
-    const legMat = new THREE.MeshLambertMaterial({ color: 0x4a4438 });
+    const colors = TEAM_COLORS[team];
+    this.torsoMat = new THREE.MeshLambertMaterial({ color: colors.torso });
+    const legMat = new THREE.MeshLambertMaterial({ color: colors.leg });
     const headMat = new THREE.MeshLambertMaterial({ color: 0xc8987a });
-    const bandMat = new THREE.MeshLambertMaterial({ color: 0xb03a2a });
+    const bandMat = new THREE.MeshLambertMaterial({ color: colors.band });
     const gunMat = new THREE.MeshLambertMaterial({ color: 0x222220 });
     const torso = new THREE.Mesh(botGeo.torso, this.torsoMat);
     torso.position.y = 1.2;
@@ -1130,10 +1175,24 @@ class Bot {
     this.mesh = g;
   }
 
-  canSee() {
-    if (!player.alive) return false;
+  // nearest living enemy: the player counts as part of the CT side
+  pickTarget() {
+    const list = this.team === 't'
+      ? (player.alive ? [PLAYER_ENTITY] : []).concat(bots.filter((b) => b.alive && b.team === 'ct'))
+      : bots.filter((b) => b.alive && b.team === 't');
+    let best = null;
+    let bd = Infinity;
+    for (const t of list) {
+      const d = (t.pos.x - this.pos.x) ** 2 + (t.pos.z - this.pos.z) ** 2;
+      if (d < bd) { bd = d; best = t; }
+    }
+    return best;
+  }
+
+  canSee(t) {
     const from = new THREE.Vector3(this.pos.x, 1.78, this.pos.z);
-    const to = new THREE.Vector3(player.pos.x, player.pos.y + EYE, player.pos.z);
+    const ty = t.isPlayer ? t.pos.y + EYE : 1.78;
+    const to = new THREE.Vector3(t.pos.x, ty, t.pos.z);
     const d = to.sub(from);
     const dist = d.length();
     d.normalize();
@@ -1155,21 +1214,36 @@ class Bot {
     this.deadT = 0;
   }
 
-  fireAtPlayer() {
+  fireAt(t) {
     const from = new THREE.Vector3(this.pos.x, 1.5, this.pos.z);
-    const target = new THREE.Vector3(player.pos.x, player.pos.y + EYE - 0.25, player.pos.z);
+    const ty = t.isPlayer ? t.pos.y + EYE - 0.25 : 1.4;
+    const target = new THREE.Vector3(t.pos.x, ty, t.pos.z);
     const dist = from.distanceTo(target);
     sfx.shot('enemy');
+    const tracer = TEAM_COLORS[this.team].tracer;
     const chance = Math.max(0.08, 0.55 - dist * 0.0055);
     if (Math.random() < chance) {
-      spawnTracer(from, target, 0xffb060);
-      damagePlayer(9 + Math.random() * 9);
+      spawnTracer(from, target, tracer);
+      const dmg = 9 + Math.random() * 9;
+      if (t.isPlayer) {
+        damagePlayer(dmg);
+      } else {
+        t.hp -= dmg;
+        t.alert = true;
+        t.flash(0.12);
+        if (t.hp <= 0) {
+          t.die();
+          addKillfeed(`${this.name} ⟶ ${t.name}`, t.team === 'ct');
+          updateHUD();
+          checkTeamWipe();
+        }
+      }
     } else {
       const miss = target.clone();
       miss.x += (Math.random() - 0.5) * 3;
       miss.y += (Math.random() - 0.5) * 2;
       miss.z += (Math.random() - 0.5) * 3;
-      spawnTracer(from, miss, 0xffb060);
+      spawnTracer(from, miss, tracer);
     }
   }
 
@@ -1186,13 +1260,16 @@ class Bot {
       if (this.flashT <= 0) this.torsoMat.emissive.setHex(0x000000);
     }
 
-    const los = this.canSee();
+    const target = this.pickTarget();
+    // beyond engagement range bots keep advancing instead of plinking at 8%
+    const tDist = target ? Math.hypot(target.pos.x - this.pos.x, target.pos.z - this.pos.z) : Infinity;
+    const los = target !== null && tDist < 55 && this.canSee(target);
     if (los && !this.hadLOS) this.reactT = 0.45 + Math.random() * 0.3;
     this.hadLOS = los;
 
     if (los) {
       this.alert = true;
-      const desired = Math.atan2(-(player.pos.x - this.pos.x), -(player.pos.z - this.pos.z));
+      const desired = Math.atan2(-(target.pos.x - this.pos.x), -(target.pos.z - this.pos.z));
       let dy = desired - this.yaw;
       while (dy > Math.PI) dy -= Math.PI * 2;
       while (dy < -Math.PI) dy += Math.PI * 2;
@@ -1202,7 +1279,7 @@ class Bot {
       } else {
         this.fireT -= dt;
         if (this.fireT <= 0) {
-          this.fireAtPlayer();
+          this.fireAt(target);
           this.fireT = 0.55 + Math.random() * 0.5;
         }
       }
@@ -1214,10 +1291,10 @@ class Bot {
       this.pos.z += pz * Math.cos(this.strafePhase) * 2.0 * dt;
     } else {
       this.fireT = Math.max(this.fireT, 0.25);
-      if (this.alert && player.alive) {
+      if (this.alert && target) {
         this.repathT -= dt;
         if (this.repathT <= 0 || !this.path || this.pathI >= this.path.length) {
-          this.path = bfsPath(nearestWp(this.pos.x, this.pos.z), nearestWp(player.pos.x, player.pos.z));
+          this.path = bfsPath(nearestWp(this.pos.x, this.pos.z), nearestWp(target.pos.x, target.pos.z));
           this.pathI = 0;
           this.repathT = 2;
         }
@@ -1261,7 +1338,20 @@ let bots = [];
 
 function spawnBots() {
   for (const b of bots) b.dispose();
-  bots = BOT_SPAWNS.map(([x, z], i) => new Bot(`Bot_${BOT_NAMES[i]}`, x, z));
+  bots = [];
+  for (let i = 0; i < teamSetup.enemies; i++) {
+    bots.push(new Bot(`Bot_${BOT_NAMES[i]}`, BOT_SPAWNS[i][0], BOT_SPAWNS[i][1], 't'));
+  }
+  for (let i = 0; i < teamSetup.allies; i++) {
+    bots.push(new Bot(CT_BOT_NAMES[i], CT_BOT_SPAWNS[i][0], CT_BOT_SPAWNS[i][1], 'ct'));
+  }
+}
+
+// round resolves when one whole side is down (the player counts as CT)
+function checkTeamWipe() {
+  if (state !== 'live') return;
+  if (bots.filter((b) => b.team === 't').every((b) => !b.alive)) endRound(true);
+  else if (!player.alive && bots.filter((b) => b.team === 'ct').every((b) => !b.alive)) endRound(false);
 }
 
 // ---------------------------------------------------------------- rounds / economy
@@ -1378,8 +1468,10 @@ function updateHUD() {
   setText(els.scoreCT, `CT ${ctScore}`);
   setText(els.scoreT, `${tScore} T`);
   setText(els.roundLabel, `ROUND ${round}`);
-  const alive = bots.filter((b) => b.alive).length;
-  setText(els.enemies, `ENEMIES ${alive}/${bots.length || 5}`);
+  const ts = bots.filter((b) => b.team === 't');
+  const cts = bots.filter((b) => b.team === 'ct');
+  const allies = cts.length ? ` · ALLIES ${cts.filter((b) => b.alive).length}/${cts.length}` : '';
+  setText(els.enemies, `ENEMIES ${ts.filter((b) => b.alive).length}/${ts.length || 5}${allies}`);
   const inst = curInst();
   const spec = WEAPONS[inst.id];
   setText(els.weapon, spec.skin.toUpperCase());
@@ -1458,7 +1550,10 @@ function purchase(i) {
 
 // ---------------------------------------------------------------- scoreboard
 function renderScoreboard() {
-  const botRows = bots.map((b) => `<tr class="${b.alive ? '' : 'dead'}"><td>${b.name}</td><td>T</td><td>${b.alive ? 'alive' : 'dead'}</td></tr>`).join('');
+  const botRows = [...bots]
+    .sort((a, b) => (a.team === 'ct' ? 0 : 1) - (b.team === 'ct' ? 0 : 1))
+    .map((b) => `<tr class="${b.alive ? '' : 'dead'}"><td>${b.name}</td><td>${b.team.toUpperCase()}</td><td>${b.alive ? 'alive' : 'dead'}</td></tr>`)
+    .join('');
   els.scoreboard.innerHTML = `<h2>QUADRA TAVARES BASTOS — CT ${ctScore} : ${tScore} T</h2>
     <table><tr><th>PLAYER</th><th>TEAM</th><th>STATUS</th></tr>
     <tr class="you"><td>you · ${player.kills}K / ${player.deaths}D</td><td>CT</td><td>${player.alive ? 'alive' : 'dead'}</td></tr>
@@ -1619,6 +1714,11 @@ window.cs_give = (id) => {
   updateHUD();
   return WEAPONS[id].skin;
 };
+window.cs_bots = () => bots.map((b) => ({
+  name: b.name, team: b.team, alive: b.alive, alert: b.alert, hp: Math.round(b.hp),
+  x: +b.pos.x.toFixed(1), z: +b.pos.z.toFixed(1),
+  pathLen: b.path ? b.path.length - b.pathI : 0,
+}));
 window.cs_tp = (x, z, yaw = player.yaw) => {
   player.pos.set(x, 0, z);
   player.vy = 0;

@@ -105,9 +105,10 @@ export const MAP_BOXES = [
   [-10, -15.4, 3, 3, 1.1, 0, 'crateLow'],
   [10, 15.4, 3, 3, 1.1, 0, 'crateLow'],
 
-  // spawn screens: buildings that break the spawn-to-spawn sightline down mid
-  [-38, 0, 6, 12, 4.5, 0, 'wall'],
-  [38, 0, 6, 12, 4.5, 0, 'wall'],
+  // spawn screens: buildings that break the spawn-to-spawn sightlines (the full
+  // spawn band, z -11..11 — bots spawn out to z ±10)
+  [-38, 0, 6, 22, 4.5, 0, 'wall'],
+  [38, 0, 6, 22, 4.5, 0, 'wall'],
 
   // spawn plazas: painted pads + cover
   [-52, 0, 8, 10, 0.04, 0, 'padCT'],
@@ -140,10 +141,10 @@ export const WAYPOINTS = [
   [16, -21],  // 17 north divider gap, east
   [-16, 21],  // 18 south divider gap, west
   [16, 21],   // 19 south divider gap, east
-  [-38, -10], // 20 west spawn screen, north side
-  [-38, 10],  // 21 west spawn screen, south side
-  [38, -10],  // 22 east spawn screen, north side
-  [38, 10],   // 23 east spawn screen, south side
+  [-38, -16], // 20 west spawn screen, north side
+  [-38, 16],  // 21 west spawn screen, south side
+  [38, -16],  // 22 east spawn screen, north side
+  [38, 16],   // 23 east spawn screen, south side
 ];
 export const WAY_EDGES = [
   [0, 1], [0, 2],
@@ -161,3 +162,6 @@ export const WAY_EDGES = [
 export const PLAYER_SPAWN = { x: -52, z: 0, yaw: -Math.PI / 2 };
 export const BOT_SPAWNS = [[52, -10], [56, -5], [54, 0], [56, 5], [52, 10]];
 export const BOT_NAMES = ['João', 'Thiago', 'Rafa', 'Cauã', 'Marquinhos'];
+// Friendly CT bots (player + up to 4 = the 5v5 cap)
+export const CT_BOT_SPAWNS = [[-52, -9], [-56, -4], [-55, 4], [-52, 9]];
+export const CT_BOT_NAMES = ['Zico', 'Sócrates', 'Falcão', 'Careca'];

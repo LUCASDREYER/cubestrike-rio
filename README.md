@@ -18,7 +18,7 @@ No engine download, no install, no build step — one HTML file, a few JS module
 - **The CS economy** — $800 pistol round, kill rewards ($300 rifle / $600 SMG / $1500 knife / $100 sniper), win and loss bonuses, $16,000 cap
 - **Buy menu** — press the number keys during the buy phase, just like 1.6
 - **Round system** — first to 8 rounds wins the match; survive and you keep your guns, die and you're back on pistol
-- **Bots** — 5 terrorists with waypoint navigation, line-of-sight checks, reaction time, and aim that gets worse with distance
+- **Bots, on both teams** — pick your team sizes on the menu (up to 5v5): 1–5 enemy terrorists plus up to 4 allied CT bots that push lanes and trade kills, all with waypoint navigation, line-of-sight checks, reaction time, and aim that gets worse with distance. Die with allies still up and the round plays out — they can clutch it for you
 - **Headshots** — 4× damage, separate head hitbox
 - **Synthesized audio** — every sound is generated with WebAudio at runtime; there are zero asset files in this repo
 
