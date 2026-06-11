@@ -34,61 +34,117 @@ export const BUY_TIME = 6;
 export const ROUND_TIME = 90;
 
 // Map blockout: [x, z, width, depth, height, baseY, kind]
+// "Quadra" — favela futsal-court map. Three east-west lanes: top lane (z<0),
+// the fenced court as mid, bottom lane (z>0). Team 1 spawns west, Team 2 east.
+// Kinds court/padCT/padT/line are painted ground decals — drawn but not solid.
 export const MAP_BOXES = [
   // outer walls
-  [0, -36, 104, 2, 5, 0, 'wall'],
-  [0, 36, 104, 2, 5, 0, 'wall'],
-  [-51, 0, 2, 74, 5, 0, 'wall'],
-  [51, 0, 2, 74, 5, 0, 'wall'],
-  // mid wall with door gap at x 0..4, plus a lintel above the gap
-  [-11, 0, 22, 2, 4, 0, 'wall'],
-  [13, 0, 18, 2, 4, 0, 'wall'],
-  [2, 0, 4, 2, 1.5, 2.5, 'wall'],
-  // lane dividers
-  [-30, -12, 2, 24, 4, 0, 'wall'],
-  [30, 8, 2, 16, 4, 0, 'wall'],
-  // pillar
-  [-14, 10, 3, 3, 4, 0, 'pillar'],
-  // crates (2.2 high = cover, 1.1 high = jumpable)
-  [-42, -16, 4, 4, 2.2, 0, 'crate'],
-  [-24, 6, 3, 3, 2.2, 0, 'crate'],
-  [-8, -14, 4, 4, 2.2, 0, 'crate'],
-  [8, 14, 3, 3, 2.2, 0, 'crate'],
-  [18, -10, 4, 4, 2.2, 0, 'crate'],
-  [38, 14, 3, 3, 2.2, 0, 'crate'],
-  [42, -20, 4, 4, 2.2, 0, 'crate'],
-  [24, 22, 3, 3, 2.2, 0, 'crate'],
-  [6, -20, 4, 4, 2.2, 0, 'crate'],
-  [6, -20, 2.6, 2.6, 1.5, 2.2, 'crate'],
-  [-6, 20, 4, 4, 1.1, 0, 'crateLow'],
-  [-34, 20, 3, 3, 1.1, 0, 'crateLow'],
+  [0, -42, 124, 2, 5, 0, 'wall'],
+  [0, 42, 124, 2, 5, 0, 'wall'],
+  [-61, 0, 2, 86, 5, 0, 'wall'],
+  [61, 0, 2, 86, 5, 0, 'wall'],
+
+  // the court: painted slab + chain-link fence (1.3 high: see and shoot over,
+  // vault from a crate). Entry gaps mid-west and mid-east carry the mid lane.
+  [0, 0, 36, 26, 0.04, 0, 'court'],
+  [0, 0, 36, 0.5, 0.02, 0.04, 'line'],          // halfway line
+  [0, -13, 36.6, 0.6, 1.3, 0, 'fence'],          // north fence
+  [0, 13, 36.6, 0.6, 1.3, 0, 'fence'],           // south fence
+  [-18, -7.75, 0.6, 10.5, 1.3, 0, 'fence'],      // west fence, gap at z -2.5..2.5
+  [-18, 7.75, 0.6, 10.5, 1.3, 0, 'fence'],
+  [18, -7.75, 0.6, 10.5, 1.3, 0, 'fence'],       // east fence, gap at z -2.5..2.5
+  [18, 7.75, 0.6, 10.5, 1.3, 0, 'fence'],
+  // court planters (low cover, mid corridor at z 0 stays clear)
+  [-8, -6, 3, 3, 1.1, 0, 'crateLow'],
+  [-8, 6, 3, 3, 1.1, 0, 'crateLow'],
+  [8, -6, 3, 3, 1.1, 0, 'crateLow'],
+  [8, 6, 3, 3, 1.1, 0, 'crateLow'],
+  [0, -10, 3, 3, 1.1, 0, 'crateLow'],
+  [0, 10, 3, 3, 1.1, 0, 'crateLow'],
+  [-13, 4, 3, 3, 1.1, 0, 'crateLow'],
+  [13, -4, 3, 3, 1.1, 0, 'crateLow'],
+
+  // lane-divider building rows (gaps at x -20..-12 and 12..20 connect lanes)
+  [-32, -21, 24, 3, 4.5, 0, 'wall'],
+  [0, -21, 24, 3, 4.5, 0, 'wall'],
+  [32, -21, 24, 3, 4.5, 0, 'wall'],
+  [-32, 21, 24, 3, 4.5, 0, 'wall'],
+  [0, 21, 24, 3, 4.5, 0, 'wall'],
+  [32, 21, 24, 3, 4.5, 0, 'wall'],
+
+  // walkable rooftops with crate steps (ground -> 1.1 -> 2.2 -> 3.4 roof)
+  [-32, -35, 10, 5, 3.4, 0, 'pillar'],
+  [-25.5, -35, 4, 4, 2.2, 0, 'crate'],
+  [-21.5, -35, 3, 3, 1.1, 0, 'crateLow'],
+  [32, 35, 10, 5, 3.4, 0, 'pillar'],
+  [25.5, 35, 4, 4, 2.2, 0, 'crate'],
+  [21.5, 35, 3, 3, 1.1, 0, 'crateLow'],
+
+  // lane cover
+  [-10, -36, 4, 4, 2.2, 0, 'crate'],
+  [12, -27, 4, 4, 2.2, 0, 'crate'],
+  [40, -36, 3, 3, 1.1, 0, 'crateLow'],
+  [10, 36, 4, 4, 2.2, 0, 'crate'],
+  [-12, 27, 4, 4, 2.2, 0, 'crate'],
+  [-40, 36, 3, 3, 1.1, 0, 'crateLow'],
+
+  // fence-vault crates (hop on, jump over the chain-link)
+  [-10, -15.4, 3, 3, 1.1, 0, 'crateLow'],
+  [10, 15.4, 3, 3, 1.1, 0, 'crateLow'],
+
+  // spawn screens: buildings that break the spawn-to-spawn sightline down mid
+  [-38, 0, 6, 12, 4.5, 0, 'wall'],
+  [38, 0, 6, 12, 4.5, 0, 'wall'],
+
+  // spawn plazas: painted pads + cover
+  [-52, 0, 8, 10, 0.04, 0, 'padCT'],
+  [52, 0, 8, 10, 0.04, 0, 'padT'],
+  [-47, -14, 4, 4, 2.2, 0, 'crate'],
+  [-47, 14, 4, 4, 2.2, 0, 'crate'],
+  [47, -14, 4, 4, 2.2, 0, 'crate'],
+  [47, 14, 4, 4, 2.2, 0, 'crate'],
 ];
 
 // Bot navigation graph: [x, z] nodes + undirected edges (straight lines are clear).
 export const WAYPOINTS = [
-  [0, 28],    // 0  CT spawn
-  [-38, 28],  // 1
-  [38, 28],   // 2
-  [-38, 2],   // 3
-  [38, 2],    // 4
-  [-38, -26], // 5
-  [38, -26],  // 6
-  [0, -28],   // 7  T spawn
-  [2, 10],    // 8  mid door, south
-  [2, -10],   // 9  mid door, north
-  [-20, -26], // 10
-  [20, -26],  // 11
-  [-20, 14],  // 12
-  [20, 14],   // 13
+  [-52, 0],   // 0  Team 1 spawn (west)
+  [-50, -31], // 1  west plaza, north
+  [-50, 31],  // 2  west plaza, south
+  [-30, -31], // 3  top lane west
+  [0, -31],   // 4  top lane mid
+  [30, -31],  // 5  top lane east
+  [50, -31],  // 6  east plaza, north
+  [52, 0],    // 7  Team 2 spawn (east)
+  [50, 31],   // 8  east plaza, south
+  [-30, 31],  // 9  bottom lane west
+  [0, 31],    // 10 bottom lane mid
+  [30, 31],   // 11 bottom lane east
+  [-26, 0],   // 12 court west approach
+  [-10, 0],   // 13 court inside west
+  [10, 0],    // 14 court inside east
+  [26, 0],    // 15 court east approach
+  [-16, -21], // 16 north divider gap, west
+  [16, -21],  // 17 north divider gap, east
+  [-16, 21],  // 18 south divider gap, west
+  [16, 21],   // 19 south divider gap, east
+  [-38, -10], // 20 west spawn screen, north side
+  [-38, 10],  // 21 west spawn screen, south side
+  [38, -10],  // 22 east spawn screen, north side
+  [38, 10],   // 23 east spawn screen, south side
 ];
 export const WAY_EDGES = [
-  [0, 1], [0, 2], [0, 8], [0, 12], [0, 13],
-  [1, 3], [3, 5], [2, 4], [4, 6],
-  [5, 10], [10, 7], [6, 11], [11, 7],
-  [8, 9], [9, 7], [12, 8], [13, 8],
-  [1, 12], [2, 13], [9, 10], [9, 11],
+  [0, 1], [0, 2],
+  [1, 3], [3, 4], [4, 5], [5, 6], [6, 7],
+  [2, 9], [9, 10], [10, 11], [11, 8], [8, 7],
+  [12, 13], [13, 14], [14, 15],
+  [3, 16], [4, 16], [16, 12],
+  [5, 17], [4, 17], [17, 15],
+  [9, 18], [10, 18], [18, 12],
+  [11, 19], [10, 19], [19, 15],
+  [0, 20], [0, 21], [20, 12], [21, 12],
+  [7, 22], [7, 23], [22, 15], [23, 15],
 ];
 
-export const PLAYER_SPAWN = { x: 0, z: 30, yaw: 0 };
-export const BOT_SPAWNS = [[-40, -30], [-20, -30], [0, -30], [20, -30], [40, -30]];
+export const PLAYER_SPAWN = { x: -52, z: 0, yaw: -Math.PI / 2 };
+export const BOT_SPAWNS = [[52, -10], [56, -5], [54, 0], [56, 5], [52, 10]];
 export const BOT_NAMES = ['João', 'Thiago', 'Rafa', 'Cauã', 'Marquinhos'];

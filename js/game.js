@@ -75,7 +75,7 @@ function speckleTexture(base, speck, repeat) {
 }
 
 const floor = new THREE.Mesh(
-  new THREE.PlaneGeometry(110, 80),
+  new THREE.PlaneGeometry(130, 94),
   new THREE.MeshLambertMaterial({ map: speckleTexture('#a89683', '#6e6052', 18) }),
 );
 floor.rotation.x = -Math.PI / 2;
@@ -89,7 +89,14 @@ const KIND_PALETTE = {
   pillar:   [0x9c8a7a],
   crate:    [0x9a6a3a, 0xb07840, 0x7a5a32],
   crateLow: [0x7c7245, 0x8a8050],
+  fence:    [0x4a7fb5],
+  court:    [0xc9a83a],
+  line:     [0xe8e8e0],
+  padCT:    [0x5f7e9c],
+  padT:     [0xa06a60],
 };
+// Painted ground decals: rendered, but no collision and no shadow casting.
+const DECAL_KINDS = new Set(['court', 'line', 'padCT', 'padT']);
 const WALLS = []; // { min:Vector3, max:Vector3 }
 
 let boxIdx = 0;
@@ -100,13 +107,25 @@ for (const [x, z, w, d, h, y, kind] of MAP_BOXES) {
     new THREE.MeshLambertMaterial({ color: palette[boxIdx++ % palette.length] }),
   );
   mesh.position.set(x, y + h / 2, z);
-  mesh.castShadow = mesh.receiveShadow = true;
+  mesh.castShadow = !DECAL_KINDS.has(kind);
+  mesh.receiveShadow = true;
   scene.add(mesh);
+  if (DECAL_KINDS.has(kind)) continue;
   WALLS.push({
     min: new THREE.Vector3(x - w / 2, y, z - d / 2),
     max: new THREE.Vector3(x + w / 2, y + h, z + d / 2),
   });
 }
+
+// center circle on the court, futsal-style
+const centerRing = new THREE.Mesh(
+  new THREE.RingGeometry(3.4, 3.8, 32),
+  new THREE.MeshLambertMaterial({ color: 0xe8e8e0 }),
+);
+centerRing.rotation.x = -Math.PI / 2;
+centerRing.position.y = 0.06;
+centerRing.receiveShadow = true;
+scene.add(centerRing);
 
 // Distant morros ringing the arena — scenery only, no collision. The tall
 // gray one is the Sugarloaf nod; the rest are forested hills.
