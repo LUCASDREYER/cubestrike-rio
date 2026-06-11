@@ -45,7 +45,7 @@ There are also console cheats in the spirit of `sv_cheats 1` — open devtools a
 | Mouse | Aim / LMB shoot |
 | RMB | Scope (sniper) |
 | Space | Jump (hold to bunny-hop) |
-| R | Reload |
+| R | Reload (also auto-reloads on empty) |
 | B | Buy menu (during buy phase) |
 | 1 / 2 / 3 / 4 | Primary / pistol / knife / grenade |
 | Tab (hold) | Scoreboard |

@@ -21,11 +21,13 @@ const els = {
 };
 
 // ---------------------------------------------------------------- renderer / scene
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+// 1.5 keeps retina displays crisp at a fraction of the fill cost of full 2x —
+// at 2x + soft shadows the frame rate (and aim latency with it) tanks on iGPUs
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.type = THREE.PCFShadowMap;
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x8ecae6);
@@ -39,7 +41,7 @@ scene.add(new THREE.HemisphereLight(0xeaf6ff, 0x55704a, 0.95));
 const sun = new THREE.DirectionalLight(0xfff2cc, 1.6);
 sun.position.set(35, 60, 18);
 sun.castShadow = true;
-sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.mapSize.set(1024, 1024);
 sun.shadow.camera.left = -70;
 sun.shadow.camera.right = 70;
 sun.shadow.camera.top = 70;
@@ -813,7 +815,8 @@ function fire() {
   }
 
   if (inst.mag <= 0) {
-    sfx.dry();
+    if (inst.reserve > 0) startReload();
+    else sfx.dry();
     player.cooldown = 0.25;
     return;
   }
@@ -860,6 +863,9 @@ function fire() {
   // recoil
   player.pitch = Math.min(1.55, player.pitch + spec.recoil * 0.012);
   player.yaw += (Math.random() - 0.5) * spec.recoil * 0.004;
+
+  // auto-reload when the last round leaves the mag
+  if (inst.mag === 0 && inst.reserve > 0) startReload();
 
   updateHUD();
 }
@@ -1465,8 +1471,11 @@ const SENS = 0.0022;
 document.addEventListener('mousemove', (e) => {
   if (document.pointerLockElement !== canvas || !player.alive) return;
   const s = player.zoomed ? SENS * 0.4 : SENS;
-  player.yaw -= e.movementX * s;
-  player.pitch -= e.movementY * s;
+  // clamp: pointer lock occasionally reports huge one-frame spikes (esp. trackpads)
+  const dx = Math.max(-150, Math.min(150, e.movementX));
+  const dy = Math.max(-150, Math.min(150, e.movementY));
+  player.yaw -= dx * s;
+  player.pitch -= dy * s;
   player.pitch = Math.max(-1.55, Math.min(1.55, player.pitch));
 });
 
@@ -1518,15 +1527,26 @@ document.addEventListener('keyup', (e) => {
 });
 
 // ---------------------------------------------------------------- pointer lock / overlays
+// unadjustedMovement = raw input, no OS mouse acceleration — much better trackpad
+// feel. Browsers without it reject the promise, so fall back to a plain lock.
+function lockPointer() {
+  try {
+    const p = canvas.requestPointerLock({ unadjustedMovement: true });
+    if (p && p.catch) p.catch(() => canvas.requestPointerLock());
+  } catch {
+    canvas.requestPointerLock();
+  }
+}
+
 els.overlay.addEventListener('click', () => {
   sfx.unlock();
-  canvas.requestPointerLock();
+  lockPointer();
 });
 
 els.againBtn.addEventListener('click', (e) => {
   e.stopPropagation();
   sfx.unlock();
-  canvas.requestPointerLock();
+  lockPointer();
 });
 
 document.addEventListener('pointerlockchange', () => {
