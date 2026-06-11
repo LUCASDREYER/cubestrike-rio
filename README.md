@@ -5,7 +5,7 @@ entirely in the browser.
 No engine download, no install, no build step — one HTML file, a few JS modules, and
 [three.js](https://threejs.org) from a CDN.
 
-**▶ Play it: https://lucasdreyer.github.io/cubestrike/** (desktop + mouse required)
+**▶ Play it: https://lucasdreyer.github.io/cubestrike-rio/** (desktop + mouse required)
 
 ## What's in the box
 
