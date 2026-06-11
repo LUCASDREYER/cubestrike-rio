@@ -1,8 +1,9 @@
 :root {
-  --hud: #c8d178;
-  --hud-dim: #8a9156;
+  /* verde e amarelo — Brazilian flag palette */
+  --hud: #ffd84d;
+  --hud-dim: #4ea35a;
   --warn: #e04a3a;
-  --bg: #14140f;
+  --bg: #0e1410;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -19,7 +20,7 @@ body { font-family: Verdana, Geneva, sans-serif; user-select: none; }
 #topbar {
   position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
   display: flex; gap: 18px; align-items: baseline;
-  background: rgba(10, 12, 6, 0.55); padding: 6px 18px; border: 1px solid rgba(200, 209, 120, 0.25);
+  background: rgba(6, 16, 10, 0.55); padding: 6px 18px; border: 1px solid rgba(255, 216, 77, 0.25);
   font-weight: bold; font-size: 15px; letter-spacing: 1px;
 }
 #timer { font-size: 20px; min-width: 64px; text-align: center; }
@@ -33,7 +34,7 @@ body { font-family: Verdana, Geneva, sans-serif; user-select: none; }
 #enemies {
   position: absolute; top: 12px; right: 16px;
   font-size: 12px; font-weight: bold; letter-spacing: 1px;
-  background: rgba(10, 12, 6, 0.55); padding: 5px 10px; border: 1px solid rgba(200, 209, 120, 0.25);
+  background: rgba(6, 16, 10, 0.55); padding: 5px 10px; border: 1px solid rgba(255, 216, 77, 0.25);
 }
 
 #killfeed {
@@ -41,7 +42,7 @@ body { font-family: Verdana, Geneva, sans-serif; user-select: none; }
   font-size: 11px; line-height: 1.7;
 }
 #killfeed div {
-  background: rgba(10, 12, 6, 0.6); padding: 2px 8px; margin-top: 3px;
+  background: rgba(6, 16, 10, 0.6); padding: 2px 8px; margin-top: 3px;
   border-right: 3px solid var(--hud);
 }
 #killfeed div.bad { border-right-color: var(--warn); color: #d8a79e; }
@@ -80,7 +81,7 @@ body { font-family: Verdana, Geneva, sans-serif; user-select: none; }
 #bannerSub { margin-top: 6px; font-size: 13px; letter-spacing: 2px; color: #d8d8c0; text-shadow: 0 1px 0 #000; }
 
 #bl { position: absolute; left: 16px; bottom: 14px; display: flex; gap: 22px; align-items: flex-end; }
-.stat { display: flex; align-items: baseline; gap: 7px; background: rgba(10,12,6,0.55); padding: 4px 12px; border: 1px solid rgba(200,209,120,0.25); }
+.stat { display: flex; align-items: baseline; gap: 7px; background: rgba(6,16,10,0.55); padding: 4px 12px; border: 1px solid rgba(255,216,77,0.25); }
 .stat .lbl { font-size: 14px; }
 .stat span:last-child { font-family: Impact, "Arial Narrow Bold", sans-serif; font-size: 30px; letter-spacing: 1px; }
 #hp.low { color: var(--warn); }
@@ -89,7 +90,7 @@ body { font-family: Verdana, Geneva, sans-serif; user-select: none; }
 #br { position: absolute; right: 16px; bottom: 14px; text-align: right; }
 #weapon { font-size: 11px; letter-spacing: 2px; color: var(--hud-dim); margin-bottom: 2px; }
 #ammo { font-family: Impact, "Arial Narrow Bold", sans-serif; font-size: 34px; letter-spacing: 1px;
-  background: rgba(10,12,6,0.55); padding: 2px 12px; border: 1px solid rgba(200,209,120,0.25); }
+  background: rgba(6,16,10,0.55); padding: 2px 12px; border: 1px solid rgba(255,216,77,0.25); }
 #ammo.reloading { color: var(--hud-dim); }
 
 #vignette { position: absolute; inset: 0; opacity: 0; background: radial-gradient(ellipse at center, transparent 55%, rgba(190, 20, 10, 0.65) 100%); }
@@ -103,12 +104,12 @@ body { font-family: Verdana, Geneva, sans-serif; user-select: none; }
 /* ---------- buy menu ---------- */
 #buymenu {
   position: absolute; left: 24px; top: 90px; width: 290px;
-  background: rgba(12, 14, 8, 0.92); border: 1px solid rgba(200, 209, 120, 0.45);
+  background: rgba(7, 18, 11, 0.92); border: 1px solid rgba(255, 216, 77, 0.45);
   padding: 12px 0; font-size: 13px;
 }
 #buymenu h2 {
   font-size: 12px; letter-spacing: 3px; padding: 0 14px 8px; color: var(--hud);
-  border-bottom: 1px solid rgba(200,209,120,0.25); margin-bottom: 6px;
+  border-bottom: 1px solid rgba(255,216,77,0.25); margin-bottom: 6px;
 }
 .buy-item { display: flex; align-items: baseline; gap: 10px; padding: 6px 14px; color: #d8d8c0; }
 .buy-item .key {
@@ -124,7 +125,7 @@ body { font-family: Verdana, Geneva, sans-serif; user-select: none; }
 /* ---------- scoreboard ---------- */
 #scoreboard {
   position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-  width: 380px; background: rgba(12, 14, 8, 0.92); border: 1px solid rgba(200,209,120,0.45);
+  width: 380px; background: rgba(7, 18, 11, 0.92); border: 1px solid rgba(255,216,77,0.45);
   padding: 14px 18px; font-size: 13px;
 }
 #scoreboard h2 { font-size: 14px; letter-spacing: 3px; margin-bottom: 10px; color: var(--hud); }
@@ -138,7 +139,7 @@ body { font-family: Verdana, Geneva, sans-serif; user-select: none; }
 #overlay, #matchOverlay {
   position: fixed; inset: 0; z-index: 10; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
-  background: radial-gradient(ellipse at center, rgba(24, 26, 16, 0.72), rgba(8, 9, 5, 0.93));
+  background: radial-gradient(ellipse at center, rgba(14, 28, 18, 0.72), rgba(5, 10, 7, 0.93));
 }
 .panel { text-align: center; color: #e8e2c8; max-width: 560px; padding: 24px; }
 .panel h1 {
@@ -162,6 +163,6 @@ body { font-family: Verdana, Geneva, sans-serif; user-select: none; }
 #matchStats { font-size: 13px; color: #c8c2a8; margin-bottom: 26px; }
 #againBtn {
   font-family: inherit; font-size: 14px; font-weight: bold; letter-spacing: 2px;
-  background: var(--hud); color: #14140f; border: none; padding: 12px 34px; cursor: pointer;
+  background: var(--hud); color: #0e1410; border: none; padding: 12px 34px; cursor: pointer;
 }
-#againBtn:hover { background: #e2eb96; }
+#againBtn:hover { background: #ffe98a; }

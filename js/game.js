@@ -28,15 +28,15 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xc9b287);
-scene.fog = new THREE.Fog(0xc9b287, 60, 160);
+scene.background = new THREE.Color(0x8ecae6);
+scene.fog = new THREE.Fog(0x9fd4e8, 60, 210);
 
 const camera = new THREE.PerspectiveCamera(74, window.innerWidth / window.innerHeight, 0.1, 300);
 camera.rotation.order = 'YXZ';
 scene.add(camera);
 
-scene.add(new THREE.HemisphereLight(0xfff3d6, 0x6b5a3a, 0.95));
-const sun = new THREE.DirectionalLight(0xfff0d0, 1.6);
+scene.add(new THREE.HemisphereLight(0xeaf6ff, 0x55704a, 0.95));
+const sun = new THREE.DirectionalLight(0xfff2cc, 1.6);
 sun.position.set(35, 60, 18);
 sun.castShadow = true;
 sun.shadow.mapSize.set(2048, 2048);
@@ -76,19 +76,28 @@ function speckleTexture(base, speck, repeat) {
 
 const floor = new THREE.Mesh(
   new THREE.PlaneGeometry(110, 80),
-  new THREE.MeshLambertMaterial({ map: speckleTexture('#a18a5c', '#6e5c39', 18) }),
+  new THREE.MeshLambertMaterial({ map: speckleTexture('#a89683', '#6e6052', 18) }),
 );
 floor.rotation.x = -Math.PI / 2;
 floor.receiveShadow = true;
 scene.add(floor);
 
-const KIND_COLOR = { wall: 0xb39b72, pillar: 0x9c8259, crate: 0x8a6a3f, crateLow: 0x7c7245 };
+// Favela palette: walls cycle through painted-house colors (deterministic per
+// box index so the map looks the same every load); crates stay wood-toned.
+const KIND_PALETTE = {
+  wall:     [0xc96a45, 0xe3b54a, 0x6fbf8e, 0x5f9ec9, 0xd98a9e, 0xd9d08a],
+  pillar:   [0x9c8a7a],
+  crate:    [0x9a6a3a, 0xb07840, 0x7a5a32],
+  crateLow: [0x7c7245, 0x8a8050],
+};
 const WALLS = []; // { min:Vector3, max:Vector3 }
 
+let boxIdx = 0;
 for (const [x, z, w, d, h, y, kind] of MAP_BOXES) {
+  const palette = KIND_PALETTE[kind];
   const mesh = new THREE.Mesh(
     new THREE.BoxGeometry(w, h, d),
-    new THREE.MeshLambertMaterial({ color: KIND_COLOR[kind] }),
+    new THREE.MeshLambertMaterial({ color: palette[boxIdx++ % palette.length] }),
   );
   mesh.position.set(x, y + h / 2, z);
   mesh.castShadow = mesh.receiveShadow = true;
@@ -97,6 +106,28 @@ for (const [x, z, w, d, h, y, kind] of MAP_BOXES) {
     min: new THREE.Vector3(x - w / 2, y, z - d / 2),
     max: new THREE.Vector3(x + w / 2, y + h, z + d / 2),
   });
+}
+
+// Distant morros ringing the arena — scenery only, no collision. The tall
+// gray one is the Sugarloaf nod; the rest are forested hills.
+const MORROS = [
+  // [x, z, radius, height, color]
+  [10, -150, 42, 58, 0x8a8d92],
+  [-80, -125, 55, 30, 0x3e7a4f],
+  [95, -115, 48, 24, 0x46855a],
+  [120, 30, 50, 26, 0x3e7a4f],
+  [-125, -10, 52, 28, 0x46855a],
+  [70, 140, 58, 32, 0x3e7a4f],
+  [-75, 135, 50, 26, 0x46855a],
+];
+for (const [x, z, r, h, color] of MORROS) {
+  const m = new THREE.Mesh(
+    new THREE.SphereGeometry(r, 24, 16),
+    new THREE.MeshLambertMaterial({ color }),
+  );
+  m.scale.y = h / r;
+  m.position.set(x, 0, z);
+  scene.add(m);
 }
 
 // Ray vs AABB (slab method). Returns distance along dir, or null.
@@ -424,7 +455,7 @@ function playerDie() {
   vmGroup.visible = false;
   els.vignette.classList.add('dead');
   addKillfeed('Terrorists ⟶ you', true);
-  banner('YOU DIED', '', true);
+  banner('VOCÊ MORREU', '', true);
   setTimeout(() => { if (state === 'live') endRound(false); }, 1700);
 }
 
@@ -946,7 +977,7 @@ function startRound() {
   tState = BUY_TIME;
   openBuyMenu(true);
   sfx.roundStart();
-  banner(`ROUND ${round}`, 'buy your gear', false, 1.8);
+  banner(`RODADA ${round}`, 'compre seu equipamento', false, 1.8);
   updateHUD();
 }
 
@@ -954,7 +985,7 @@ function goLive() {
   state = 'live';
   tState = ROUND_TIME;
   openBuyMenu(false);
-  banner('GO GO GO', '', false, 1.2);
+  banner('VAI VAI VAI', '', false, 1.2);
 }
 
 function endRound(win) {
@@ -965,12 +996,12 @@ function endRound(win) {
   if (win) {
     ctScore++;
     player.money = Math.min(ECON.cap, player.money + ECON.win);
-    banner('COUNTER-TERRORISTS WIN', `+$${ECON.win}`);
+    banner('CONTRA-TERRORISTAS VENCEM', `+$${ECON.win}`);
     sfx.win();
   } else {
     tScore++;
     player.money = Math.min(ECON.cap, player.money + ECON.loss);
-    banner('TERRORISTS WIN', `+$${ECON.loss}`, true);
+    banner('TERRORISTAS VENCEM', `+$${ECON.loss}`, true);
     sfx.lose();
   }
   updateHUD();
@@ -980,7 +1011,7 @@ function matchEnd() {
   state = 'matchend';
   document.exitPointerLock();
   const won = ctScore > tScore;
-  els.matchResult.textContent = won ? 'MATCH WON' : 'MATCH LOST';
+  els.matchResult.textContent = won ? 'VITÓRIA!' : 'DERROTA';
   els.matchScore.textContent = `${ctScore} — ${tScore}`;
   const acc = player.shots ? Math.round((player.hits / player.shots) * 100) : 0;
   els.matchStats.textContent = `Kills ${player.kills} · Deaths ${player.deaths} · Accuracy ${acc}%`;
@@ -1062,8 +1093,8 @@ function renderBuyMenu() {
       <span class="key">${i + 1}</span><span class="name">${spec.name}${skin}</span>
       <span class="price">$${spec.price}</span></div>`;
   }).join('');
-  els.buymenu.innerHTML = `<h2>BUY EQUIPMENT</h2>${rows}
-    <div class="foot">PRESS 1-${BUY_ITEMS.length} TO BUY · B TO CLOSE</div>`;
+  els.buymenu.innerHTML = `<h2>LOJA</h2>${rows}
+    <div class="foot">APERTE 1-${BUY_ITEMS.length} PARA COMPRAR · B PARA FECHAR</div>`;
 }
 
 function purchase(i) {
@@ -1086,7 +1117,7 @@ function purchase(i) {
 // ---------------------------------------------------------------- scoreboard
 function renderScoreboard() {
   const botRows = bots.map((b) => `<tr class="${b.alive ? '' : 'dead'}"><td>${b.name}</td><td>T</td><td>${b.alive ? 'alive' : 'dead'}</td></tr>`).join('');
-  els.scoreboard.innerHTML = `<h2>CUBESTRIKE — CT ${ctScore} : ${tScore} T</h2>
+  els.scoreboard.innerHTML = `<h2>CUBESTRIKE: RIO — CT ${ctScore} : ${tScore} T</h2>
     <table><tr><th>PLAYER</th><th>TEAM</th><th>STATUS</th></tr>
     <tr class="you"><td>you · ${player.kills}K / ${player.deaths}D</td><td>CT</td><td>${player.alive ? 'alive' : 'dead'}</td></tr>
     ${botRows}</table>`;
