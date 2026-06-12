@@ -19,7 +19,10 @@ in-code, all audio is synthesized at runtime.
   code path in game.js must stay gated on `net.isGuest`. Joiners alternate
   teams starting with T (PvP via the `pvp`/`dmg` messages; `myTeam` makes HUD,
   hitscan, and round results team-relative). Friendly fire is off everywhere.
-  The only external dependency is the free PeerJS signaling cloud.
+  The only external dependency is the free PeerJS signaling cloud. ICE is
+  STUN-only by default; same-machine cross-browser joins and strict NATs need
+  a TURN relay — paste a Metered credentials URL into `TURN_CREDENTIALS_URL`
+  in net.js (free keyless public TURN servers are all dead; verified 2026-06).
 - `style.css` — HUD theme via CSS variables (`--hud` yellow, `--hud-dim` green)
 
 ## Conventions
