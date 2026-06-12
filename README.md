@@ -21,7 +21,7 @@ No engine download, no install, no build step — one HTML file, a few JS module
 - **Bots, on both teams** — pick your team sizes on the menu (up to 5v5): 1–5 enemy terrorists plus up to 4 allied CT bots that push lanes and trade kills, all with waypoint navigation, line-of-sight checks, reaction time, and aim that gets worse with distance. Die with allies still up and the round plays out — they can clutch it for you
 - **Headshots** — 4× damage, separate head hitbox
 - **Synthesized audio** — every sound is generated with WebAudio at runtime; there are zero asset files in this repo
-- **Co-op multiplayer, no server** — click CREATE ROOM, send the link (or 4-letter code) to friends, and they drop in as yellow-banded CTs on your team. Peer-to-peer over WebRTC (PeerJS), host-authoritative: the host's browser runs the bots and rounds, guests run their own movement so jumping and bhop stay lag-free. Up to 5 humans + bots, co-op vs the terrorists — joiners take ally-bot slots
+- **Multiplayer, no server — PvP and co-op** — click CREATE ROOM, send the link (or 4-letter code) to friends. Joiners alternate teams starting with T, so two players is instantly a **1v1** (set enemy bots to 0 for a pure duel); more players split across the teams, and bots fill the remaining slots up to 5v5. Peer-to-peer over WebRTC (PeerJS), host-authoritative: the host's browser runs the bots, rounds, and damage, while everyone runs their own movement locally so jumping and bhop stay lag-free. Humans wear a yellow headband; friendly fire is off
 
 ## The armory
 
@@ -76,7 +76,7 @@ Then open `http://localhost:8080`.
 ## Roadmap
 
 - [x] Friendly CT bots
-- [x] WebRTC co-op multiplayer (host a room, share the code)
+- [x] WebRTC multiplayer — co-op and 1v1/PvP (host a room, share the code)
 - [ ] Bomb plant / defuse objective
 - [ ] Radar
 - [ ] Authoritative-server PvP

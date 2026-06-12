@@ -12,12 +12,14 @@ in-code, all audio is synthesized at runtime.
 - `js/config.js` — all tunable data: `WEAPONS`, `BUY_ITEMS`, economy, bhop, map
   blockout (`MAP_BOXES`), bot nav graph (`WAYPOINTS`/`WAY_EDGES`), spawns
 - `js/audio.js` — WebAudio synth (`sfx.*`); no audio files ever
-- `js/net.js` — PeerJS/WebRTC transport for co-op. Host-authoritative: host runs
+- `js/net.js` — PeerJS/WebRTC transport. Host-authoritative: host runs
   bots/rounds/damage; guests simulate their own movement, report `state` at
   ~16Hz, and puppet everything else from host `snap` messages. Round flow on
   guests is event-driven (`round`/`live`/`end`/`match`) — every round-deciding
-  code path in game.js must stay gated on `net.isGuest`. No PvP, no friendly
-  fire. The only external dependency is the free PeerJS signaling cloud.
+  code path in game.js must stay gated on `net.isGuest`. Joiners alternate
+  teams starting with T (PvP via the `pvp`/`dmg` messages; `myTeam` makes HUD,
+  hitscan, and round results team-relative). Friendly fire is off everywhere.
+  The only external dependency is the free PeerJS signaling cloud.
 - `style.css` — HUD theme via CSS variables (`--hud` yellow, `--hud-dim` green)
 
 ## Conventions

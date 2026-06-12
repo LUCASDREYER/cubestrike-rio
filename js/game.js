@@ -33,7 +33,7 @@ function readCount(key, def, min, max) {
 }
 const teamSetup = {
   allies: readCount('cs_allies', 0, 0, CT_BOT_NAMES.length),
-  enemies: readCount('cs_enemies', 5, 1, BOT_NAMES.length),
+  enemies: readCount('cs_enemies', 5, 0, BOT_NAMES.length),
 };
 function renderTeamSetup() {
   els.allyN.textContent = String(teamSetup.allies);
@@ -47,8 +47,9 @@ function bumpTeam(e, key, delta, min, max) {
 }
 els.allyMinus.addEventListener('click', (e) => bumpTeam(e, 'allies', -1, 0, CT_BOT_NAMES.length));
 els.allyPlus.addEventListener('click', (e) => bumpTeam(e, 'allies', 1, 0, CT_BOT_NAMES.length));
-els.enemyMinus.addEventListener('click', (e) => bumpTeam(e, 'enemies', -1, 1, BOT_NAMES.length));
-els.enemyPlus.addEventListener('click', (e) => bumpTeam(e, 'enemies', 1, 1, BOT_NAMES.length));
+// enemy bots can go to 0 for pure PvP duels; offline a lone bot is forced in
+els.enemyMinus.addEventListener('click', (e) => bumpTeam(e, 'enemies', -1, 0, BOT_NAMES.length));
+els.enemyPlus.addEventListener('click', (e) => bumpTeam(e, 'enemies', 1, 0, BOT_NAMES.length));
 renderTeamSetup();
 
 // ---------------------------------------------------------------- renderer / scene
@@ -507,6 +508,7 @@ function resolveVertical() {
 
 const keys = {};
 let mouseDown = false;
+let lastDamager = null; // { id, name } of whoever hurt the local player last
 let deathT = 0;
 let groundTime = 0;
 let bobPhase = 0;
@@ -643,8 +645,9 @@ function playerDie() {
   setZoom(false);
   vmGroup.visible = false;
   els.vignette.classList.add('dead');
-  addKillfeed('Terrorists ⟶ you', true);
-  if (net.isHost) net.broadcast({ t: 'kill', bn: 'Terrorists', v: 'P1', bad: true });
+  const killer = lastDamager?.name ?? (myTeam === 'ct' ? 'Terrorists' : 'CTs');
+  addKillfeed(`${killer} ⟶ you`, true);
+  if (net.isHost) net.broadcast({ t: 'kill', bn: killer, v: 'P1', bad: true, by: lastDamager?.id ?? null, a: 300 });
   banner('VOCÊ MORREU', '', true);
   // with allies still up the round plays out; otherwise it's lost
   setTimeout(() => checkTeamWipe(), 1700);
@@ -833,6 +836,8 @@ function fire() {
     if (hit && hit.bot) {
       if (net.isGuest) reportHit(hit, spec.dmg * (hit.head ? 4 : 1), 'knife');
       else hurtBot(hit.bot, spec.dmg * (hit.head ? 4 : 1), hit.head, 'knife');
+    } else if (hit && hit.remote) {
+      hitRemote(hit, spec.dmg * (hit.head ? 4 : 1));
     }
     return;
   }
@@ -898,6 +903,9 @@ function fire() {
     if (net.isGuest) reportHit(hit, spec.dmg * (hit.head ? 4 : 1), inst.id);
     else hurtBot(hit.bot, spec.dmg * (hit.head ? 4 : 1), hit.head, inst.id);
     spawnParticles(end, 0x7a1f12, 6, 2.2);
+  } else if (hit && hit.remote) {
+    hitRemote(hit, spec.dmg * (hit.head ? 4 : 1));
+    spawnParticles(end, 0x7a1f12, 6, 2.2);
   } else if (hit) {
     spawnParticles(end, 0xcbb088, 5, 1.8);
   }
@@ -916,19 +924,26 @@ function fire() {
 function hitScan(origin, dir, maxT) {
   let best = null;
   const wallT = rayWalls(origin, dir, maxT);
-  if (wallT !== null) best = { t: wallT, bot: null, head: false };
-  for (const bot of bots) {
-    if (!bot.alive || bot.team === 'ct') continue; // no friendly fire
-    const headT = raySphere(origin, dir, _v1.set(bot.pos.x, 1.85, bot.pos.z), 0.3);
+  if (wallT !== null) best = { t: wallT, bot: null, remote: null, head: false };
+  const test = (px, py, pz, hit) => {
+    const headT = raySphere(origin, dir, _v1.set(px, py + 1.85, pz), 0.3);
     const bodyBox = {
-      min: _boxMin.set(bot.pos.x - 0.45, 0, bot.pos.z - 0.45),
-      max: _boxMax.set(bot.pos.x + 0.45, 1.7, bot.pos.z + 0.45),
+      min: _boxMin.set(px - 0.45, py, pz - 0.45),
+      max: _boxMax.set(px + 0.45, py + 1.7, pz + 0.45),
     };
     const bodyT = rayBox(origin, dir, bodyBox, maxT);
     let t = null;
     let head = false;
     if (headT !== null && (bodyT === null || headT < bodyT)) { t = headT; head = true; } else if (bodyT !== null) t = bodyT;
-    if (t !== null && t < maxT && (best === null || t < best.t)) best = { t, bot, head };
+    if (t !== null && t < maxT && (best === null || t < best.t)) best = { ...hit, t, head };
+  };
+  for (const bot of bots) {
+    if (!bot.alive || bot.team === myTeam) continue; // no friendly fire
+    test(bot.pos.x, 0, bot.pos.z, { bot, remote: null });
+  }
+  for (const r of remotes.values()) {
+    if (!r.alive || r.team === myTeam) continue; // PvP: only enemy humans are hittable
+    test(r.pos.x, r.pos.y, r.pos.z, { bot: null, remote: r });
   }
   return best;
 }
@@ -968,6 +983,18 @@ function reportHit(hit, dmg, weaponId) {
   showHitmark(hit.head);
   hit.bot.flash(0.1);
   net.toHost({ t: 'hit', i: bots.indexOf(hit.bot), d: Math.round(dmg), h: hit.head, w: weaponId });
+}
+
+// PvP: shooting an enemy human. Host applies it directly; guests route via host.
+function hitRemote(hit, dmg) {
+  showHitmark(hit.head);
+  const r = hit.remote;
+  if (net.isHost) {
+    r.lastHit = { id: 'host', name: 'P1', time: performance.now() };
+    net.toGuest(r.id, { t: 'dmg', d: Math.round(dmg), by: 'P1' });
+  } else {
+    net.toHost({ t: 'pvp', tgt: r.id, d: Math.round(dmg), h: hit.head });
+  }
 }
 
 function killBot(bot, head, weaponId) {
@@ -1010,7 +1037,7 @@ function throwGrenade(spec) {
   }
 }
 
-function spawnGrenade(pos, vel, spec) {
+function spawnGrenade(pos, vel, spec, owner = 'host', ownerTeam = 'ct') {
   const mesh = coxinhaMesh(1.6);
   mesh.position.copy(pos);
   scene.add(mesh);
@@ -1019,6 +1046,7 @@ function spawnGrenade(pos, vel, spec) {
     vel: vel.clone(),
     fuse: spec.fuse,
     spin: 4 + Math.random() * 6,
+    owner, ownerTeam,
   });
 }
 
@@ -1093,22 +1121,42 @@ function explode(g) {
 
   if (net.isGuest) return; // guests' grenades are visual; the host re-simulates
 
+  const ownerName = g.owner === 'host' ? 'P1' : remotes.get(g.owner)?.name ?? '??';
   for (const bot of bots) {
-    if (!bot.alive || bot.team === 'ct') continue; // no friendly fire
+    if (!bot.alive || bot.team === g.ownerTeam) continue; // no friendly fire
     const d = blast(bot.pos.x, 1.0, bot.pos.z);
     if (d > 0) {
       bot.hp -= d;
       bot.alert = true;
       bot.flash(0.15);
-      if (bot.hp <= 0) killBot(bot, false, 'nade');
+      if (bot.hp <= 0) {
+        if (g.owner === 'host') {
+          killBot(bot, false, 'nade');
+        } else {
+          bot.die();
+          addKillfeed(`${ownerName} ⟶ ${bot.name}`, bot.team === 'ct');
+          net.broadcast({ t: 'kill', bn: ownerName, v: bot.name, bad: bot.team === 'ct', by: g.owner, a: 300 });
+          updateHUD();
+          checkTeamWipe();
+        }
+      }
     }
   }
-  const pd = blast(player.pos.x, player.pos.y + 0.9, player.pos.z);
-  if (pd > 0) damagePlayer(pd);
+  // blast hurts enemies of the thrower, plus the thrower themself
+  if (g.ownerTeam !== 'ct' || g.owner === 'host') {
+    const pd = blast(player.pos.x, player.pos.y + 0.9, player.pos.z);
+    if (pd > 0) {
+      if (g.owner !== 'host') lastDamager = { id: g.owner, name: ownerName };
+      damagePlayer(pd);
+    }
+  }
   for (const r of remotes.values()) {
-    if (!r.alive) continue;
+    if (!r.alive || (r.team === g.ownerTeam && r.id !== g.owner)) continue;
     const d = blast(r.pos.x, r.pos.y + 0.9, r.pos.z);
-    if (d > 0) net.toGuest(r.id, { t: 'dmg', d: Math.round(d) });
+    if (d > 0) {
+      if (r.id !== g.owner) r.lastHit = { id: g.owner === 'host' ? 'host' : g.owner, name: ownerName, time: performance.now() };
+      net.toGuest(r.id, { t: 'dmg', d: Math.round(d), by: ownerName });
+    }
   }
 }
 
@@ -1216,19 +1264,17 @@ class Bot {
     this.mesh = g;
   }
 
-  // nearest living enemy: the player and remote co-op players count as CTs
+  // nearest living enemy of `team`: the host player is CT, remotes carry teams
   pickTarget() {
-    const list = this.team === 't'
-      ? (player.alive ? [PLAYER_ENTITY] : [])
-        .concat([...remotes.values()].filter((r) => r.alive))
-        .concat(bots.filter((b) => b.alive && b.team === 'ct'))
-      : bots.filter((b) => b.alive && b.team === 't');
     let best = null;
     let bd = Infinity;
-    for (const t of list) {
+    const consider = (t) => {
       const d = (t.pos.x - this.pos.x) ** 2 + (t.pos.z - this.pos.z) ** 2;
       if (d < bd) { bd = d; best = t; }
-    }
+    };
+    if (this.team === 't' && player.alive) consider(PLAYER_ENTITY);
+    for (const r of remotes.values()) if (r.alive && r.team !== this.team) consider(r);
+    for (const b of bots) if (b.alive && b.team !== this.team) consider(b);
     return best;
   }
 
@@ -1269,9 +1315,11 @@ class Bot {
     if (Math.random() < chance) {
       const dmg = 9 + Math.random() * 9;
       if (t.isPlayer) {
+        lastDamager = { id: null, name: this.name };
         damagePlayer(dmg);
       } else if (t.isRemote) {
-        net.toGuest(t.id, { t: 'dmg', d: Math.round(dmg) });
+        t.lastHit = { id: null, name: this.name, time: performance.now() };
+        net.toGuest(t.id, { t: 'dmg', d: Math.round(dmg), by: this.name });
       } else {
         t.hp -= dmg;
         t.alert = true;
@@ -1404,11 +1452,15 @@ let bots = [];
 function spawnBots() {
   for (const b of bots) b.dispose();
   bots = [];
-  for (let i = 0; i < teamSetup.enemies; i++) {
+  // humans occupy bot slots on their team, keeping each side capped at 5
+  const tHumans = [...remotes.values()].filter((r) => r.team === 't').length;
+  const ctHumans = [...remotes.values()].filter((r) => r.team === 'ct').length;
+  let tBots = Math.min(teamSetup.enemies, Math.max(0, BOT_NAMES.length - tHumans));
+  if (tBots + tHumans === 0) tBots = 1; // never an empty enemy side
+  for (let i = 0; i < tBots; i++) {
     bots.push(new Bot(`Bot_${BOT_NAMES[i]}`, BOT_SPAWNS[i][0], BOT_SPAWNS[i][1], 't'));
   }
-  // remote co-op players occupy CT slots: total CT side stays capped at 5
-  const allyBots = Math.min(teamSetup.allies, Math.max(0, CT_BOT_NAMES.length - remotes.size));
+  const allyBots = Math.min(teamSetup.allies, Math.max(0, CT_BOT_NAMES.length - ctHumans));
   for (let i = 0; i < allyBots; i++) {
     bots.push(new Bot(CT_BOT_NAMES[i], CT_BOT_SPAWNS[i][0], CT_BOT_SPAWNS[i][1], 'ct'));
   }
@@ -1418,11 +1470,10 @@ function spawnBots() {
 // count as CTs). Guests never decide rounds — the host broadcasts the result.
 function checkTeamWipe() {
   if (state !== 'live' || net.isGuest) return;
-  const ctDown = !player.alive
-    && bots.filter((b) => b.team === 'ct').every((b) => !b.alive)
-    && [...remotes.values()].every((r) => !r.alive);
-  if (bots.filter((b) => b.team === 't').every((b) => !b.alive)) endRound(true);
-  else if (ctDown) endRound(false);
+  const sideDown = (tm) => bots.filter((b) => b.team === tm).every((b) => !b.alive)
+    && [...remotes.values()].filter((r) => r.team === tm).every((r) => !r.alive);
+  if (sideDown('t')) endRound(true);
+  else if (!player.alive && sideDown('ct')) endRound(false);
 }
 
 // ---------------------------------------------------------------- multiplayer (co-op)
@@ -1430,17 +1481,23 @@ function checkTeamWipe() {
 // movement locally (bhop feel stays lag-free), report state at ~16Hz, and
 // render everything else from host snapshots. Co-op only — no PvP, no FF.
 
+// the local player's team: host is always CT; guests learn theirs on join.
+// Joiners alternate teams starting with T, so two humans = a 1v1.
+let myTeam = 'ct';
+
 class RemotePlayer {
-  constructor(id, name) {
+  constructor(id, name, team = 'ct') {
     this.id = id;
     this.name = name;
+    this.team = team;
     this.isRemote = true;
     this.pos = new THREE.Vector3(CT_BOT_SPAWNS[0][0], 0, CT_BOT_SPAWNS[0][1]);
     this.netT = null;
     this.yaw = 0;
     this.hp = 100;
     this.alive = true;
-    const colors = TEAM_COLORS.ct;
+    this.lastHit = null; // { id, name, time } — for PvP kill credit
+    const colors = TEAM_COLORS[team];
     const g = new THREE.Group();
     this.torsoMat = new THREE.MeshLambertMaterial({ color: colors.torso });
     const legMat = new THREE.MeshLambertMaterial({ color: colors.leg });
@@ -1472,8 +1529,19 @@ class RemotePlayer {
     if (this.alive && !m.al) {
       this.alive = false;
       if (net.isHost) {
-        addKillfeed(`Terrorists ⟶ ${this.name}`, true);
-        net.broadcast({ t: 'kill', bn: 'Terrorists', v: this.name, bad: true });
+        // credit whoever hit them last (PvP/nade), otherwise the bots did it
+        const fresh = this.lastHit && performance.now() - this.lastHit.time < 4000;
+        const kn = fresh ? this.lastHit.name : (this.team === 'ct' ? 'Terrorists' : 'CTs');
+        const kid = fresh ? this.lastHit.id : null;
+        if (kid === 'host') {
+          player.kills++;
+          player.money = Math.min(ECON.cap, player.money + 300);
+          sfx.kill();
+          addKillfeed(`you ⟶ ${this.name}  +$300`);
+        } else {
+          addKillfeed(`${kn} ⟶ ${this.name}`, this.team === 'ct');
+        }
+        net.broadcast({ t: 'kill', bn: kid === 'host' ? 'P1' : kn, v: this.name, bad: this.team === 'ct', by: kid !== 'host' ? kid : null, a: 300 });
         updateHUD();
         setTimeout(() => checkTeamWipe(), 1200);
       }
@@ -1523,12 +1591,17 @@ function setNetStatus(s) { els.netStatus.textContent = s; }
 
 function roundMsg() {
   const spawns = {};
-  let i = CT_BOT_SPAWNS.length - 1;
-  for (const id of remotes.keys()) spawns[id] = CT_BOT_SPAWNS[Math.max(0, i--)];
+  const teams = { host: 'ct' };
+  let ci = CT_BOT_SPAWNS.length - 1;
+  let ti = BOT_SPAWNS.length - 1;
+  for (const [id, r] of remotes) {
+    teams[id] = r.team;
+    spawns[id] = r.team === 'ct' ? CT_BOT_SPAWNS[Math.max(0, ci--)] : BOT_SPAWNS[Math.max(0, ti--)];
+  }
   return {
     t: 'round', rnd: round, ct: ctScore, ts: tScore, st: state, tt: +tState.toFixed(1),
     bots: bots.map((b) => ({ n: b.name, tm: b.team, x: +b.pos.x.toFixed(1), z: +b.pos.z.toFixed(1) })),
-    spawns,
+    spawns, teams,
   };
 }
 
@@ -1544,8 +1617,10 @@ function guestRound(msg) {
     player.money = ECON.start;
     survivedLast = false;
   }
+  myTeam = msg.teams?.[net.myId] ?? 'ct';
   const sp = msg.spawns?.[net.myId] ?? [PLAYER_SPAWN.x, PLAYER_SPAWN.z];
-  resetPlayerForRound(sp[0], sp[1], PLAYER_SPAWN.yaw);
+  // T players spawn facing west, CTs facing east
+  resetPlayerForRound(sp[0], sp[1], myTeam === 't' ? Math.PI / 2 : PLAYER_SPAWN.yaw);
   for (const b of bots) b.dispose();
   bots = msg.bots.map((m) => new Bot(m.n, m.x, m.z, m.tm));
   for (const r of remotes.values()) r.respawn();
@@ -1568,13 +1643,13 @@ function updateNet(dt) {
   if (net.isHost) {
     const p = {
       host: {
-        n: 'P1', x: +player.pos.x.toFixed(2), y: +player.pos.y.toFixed(2), z: +player.pos.z.toFixed(2),
+        n: 'P1', tm: 'ct', x: +player.pos.x.toFixed(2), y: +player.pos.y.toFixed(2), z: +player.pos.z.toFixed(2),
         yaw: +player.yaw.toFixed(2), al: player.alive ? 1 : 0, hp: player.hp,
       },
     };
     for (const [id, r] of remotes) {
       p[id] = {
-        n: r.name, x: +r.pos.x.toFixed(2), y: +r.pos.y.toFixed(2), z: +r.pos.z.toFixed(2),
+        n: r.name, tm: r.team, x: +r.pos.x.toFixed(2), y: +r.pos.y.toFixed(2), z: +r.pos.z.toFixed(2),
         yaw: +r.yaw.toFixed(2), al: r.alive ? 1 : 0, hp: r.hp,
       };
     }
@@ -1594,9 +1669,12 @@ function updateNet(dt) {
 // ---- host-side messages
 net.on('join', (m, id) => {
   guestNo++;
-  const r = new RemotePlayer(id, `P${guestNo}`);
+  // joiners alternate teams starting with T: two humans = a 1v1
+  const team = [...remotes.values()].filter((x) => x.team === 't').length
+    <= [...remotes.values()].filter((x) => x.team === 'ct').length ? 't' : 'ct';
+  const r = new RemotePlayer(id, `P${guestNo}`, team);
   remotes.set(id, r);
-  addKillfeed(`${r.name} entrou`);
+  addKillfeed(`${r.name} entrou (${team.toUpperCase()})`);
   setNetStatus(`SALA ATIVA — ${remotes.size + 1} jogando`);
   if (state !== 'menu' && state !== 'matchend') net.toGuest(id, roundMsg());
   updateHUD();
@@ -1611,18 +1689,33 @@ net.on('leave', (m, id) => {
   checkTeamWipe();
 });
 net.on('state', (m, id) => remotes.get(id)?.applyState(m));
+net.on('pvp', (m, id) => {
+  // a guest shot an enemy human; host validates teams and routes the damage
+  const shooter = remotes.get(id);
+  if (!shooter || !shooter.alive) return;
+  if (m.tgt === 'host') {
+    if (shooter.team === 'ct') return;
+    lastDamager = { id, name: shooter.name };
+    damagePlayer(m.d);
+  } else {
+    const victim = remotes.get(m.tgt);
+    if (!victim || victim.team === shooter.team) return;
+    victim.lastHit = { id, name: shooter.name, time: performance.now() };
+    net.toGuest(m.tgt, { t: 'dmg', d: m.d, by: shooter.name });
+  }
+});
 net.on('hit', (m, id) => {
   const bot = bots[m.i];
   const r = remotes.get(id);
-  if (!bot || !bot.alive || bot.team !== 't' || !r) return;
+  if (!bot || !bot.alive || !r || bot.team === r.team) return; // no friendly fire
   bot.hp -= m.d;
   bot.alert = true;
   bot.flash(0.1);
   if (bot.hp <= 0) {
     bot.die();
     const award = WEAPONS[m.w]?.killAward ?? 300;
-    addKillfeed(`${r.name} ⟶ ${bot.name}${m.h ? ' [HEAD]' : ''}`);
-    net.broadcast({ t: 'kill', bn: r.name, v: bot.name, bad: false, by: id, a: award, h: m.h });
+    addKillfeed(`${r.name} ⟶ ${bot.name}${m.h ? ' [HEAD]' : ''}`, bot.team === 'ct');
+    net.broadcast({ t: 'kill', bn: r.name, v: bot.name, bad: bot.team === 'ct', by: id, a: award, h: m.h });
     updateHUD();
     checkTeamWipe();
   }
@@ -1630,7 +1723,8 @@ net.on('hit', (m, id) => {
 
 // ---- both sides (host relays guest events to the other guests)
 net.on('nade', (m, id) => {
-  spawnGrenade(new THREE.Vector3(...m.p), new THREE.Vector3(...m.v), WEAPONS.nade);
+  const team = net.isHost ? (remotes.get(id)?.team ?? 'ct') : 'ct';
+  spawnGrenade(new THREE.Vector3(...m.p), new THREE.Vector3(...m.v), WEAPONS.nade, id, team);
   if (net.isHost) net.broadcast(m, id);
 });
 net.on('shot', (m, id) => {
@@ -1642,9 +1736,24 @@ net.on('shot', (m, id) => {
 net.on('connected', () => setNetStatus('CONECTADO — esperando o host...'));
 net.on('round', (m) => guestRound(m));
 net.on('live', () => { if (net.isGuest) goLive(); });
-net.on('end', (m) => { if (net.isGuest) endRound(m.win); });
+net.on('end', (m) => {
+  // team-relative round end: m.win is "CT won"
+  if (!net.isGuest || state !== 'live') return;
+  state = 'over';
+  tState = 3.2;
+  survivedLast = player.alive;
+  if (m.win) ctScore++; else tScore++;
+  const myWin = myTeam === 'ct' ? m.win : !m.win;
+  player.money = Math.min(ECON.cap, player.money + (myWin ? ECON.win : ECON.loss));
+  banner(m.win ? 'CONTRA-TERRORISTAS VENCEM' : 'TERRORISTAS VENCEM', `+$${myWin ? ECON.win : ECON.loss}`, !myWin);
+  if (myWin) sfx.win(); else sfx.lose();
+  updateHUD();
+});
 net.on('match', () => { if (net.isGuest) matchEnd(); });
-net.on('dmg', (m) => damagePlayer(m.d));
+net.on('dmg', (m) => {
+  if (m.by) lastDamager = { id: null, name: m.by };
+  damagePlayer(m.d);
+});
 net.on('tr', (m) => spawnTracer(new THREE.Vector3(...m.f), new THREE.Vector3(...m.e), m.c));
 net.on('kill', (m) => {
   if (m.by && m.by === net.myId) {
@@ -1670,7 +1779,7 @@ net.on('snap', (m) => {
     if (id === net.myId) continue;
     let r = remotes.get(id);
     if (!r) {
-      r = new RemotePlayer(id, s.n ?? '??');
+      r = new RemotePlayer(id, s.n ?? '??', s.tm ?? 'ct');
       remotes.set(id, r);
     }
     r.applyState(s);
@@ -1807,7 +1916,8 @@ function matchEnd() {
   if (net.isHost) net.broadcast({ t: 'match' });
   state = 'matchend';
   document.exitPointerLock();
-  const won = ctScore > tScore;
+  const ctWon = ctScore > tScore;
+  const won = myTeam === 'ct' ? ctWon : !ctWon;
   els.matchResult.textContent = won ? 'VITÓRIA!' : 'DERROTA';
   els.matchScore.textContent = `${ctScore} — ${tScore}`;
   const acc = player.shots ? Math.round((player.hits / player.shots) * 100) : 0;
@@ -1833,12 +1943,15 @@ function updateHUD() {
   setText(els.scoreCT, `CT ${ctScore}`);
   setText(els.scoreT, `${tScore} T`);
   setText(els.roundLabel, `ROUND ${round}`);
-  const ts = bots.filter((b) => b.team === 't');
-  const cts = bots.filter((b) => b.team === 'ct');
-  const allyTotal = cts.length + remotes.size;
-  const allyAlive = cts.filter((b) => b.alive).length + [...remotes.values()].filter((r) => r.alive).length;
-  const allies = allyTotal ? ` · ALLIES ${allyAlive}/${allyTotal}` : '';
-  setText(els.enemies, `ENEMIES ${ts.filter((b) => b.alive).length}/${ts.length || 5}${allies}`);
+  // sides are relative to the local player's team. On guests the host appears
+  // in `remotes` (as P1, team CT), so both sides count humans automatically.
+  const enemyTeam = myTeam === 'ct' ? 't' : 'ct';
+  const side = (tm) => bots.filter((b) => b.team === tm)
+    .concat([...remotes.values()].filter((r) => r.team === tm));
+  const en = side(enemyTeam);
+  const al = side(myTeam);
+  const allies = al.length ? ` · ALLIES ${al.filter((a) => a.alive).length}/${al.length}` : '';
+  setText(els.enemies, `ENEMIES ${en.filter((e) => e.alive).length}/${en.length || 5}${allies}`);
   const inst = curInst();
   const spec = WEAPONS[inst.id];
   setText(els.weapon, spec.skin.toUpperCase());
@@ -1918,7 +2031,7 @@ function purchase(i) {
 // ---------------------------------------------------------------- scoreboard
 function renderScoreboard() {
   const remoteRows = [...remotes.values()]
-    .map((r) => `<tr class="${r.alive ? '' : 'dead'}"><td>${r.name}</td><td>CT</td><td>${r.alive ? 'alive' : 'dead'}</td></tr>`)
+    .map((r) => `<tr class="${r.alive ? '' : 'dead'}"><td>${r.name}</td><td>${r.team.toUpperCase()}</td><td>${r.alive ? 'alive' : 'dead'}</td></tr>`)
     .join('');
   const botRows = remoteRows + [...bots]
     .sort((a, b) => (a.team === 'ct' ? 0 : 1) - (b.team === 'ct' ? 0 : 1))
