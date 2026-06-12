@@ -172,6 +172,21 @@ body { font-family: Verdana, Geneva, sans-serif; user-select: none; }
 }
 .tbtn:hover { background: rgba(200, 209, 120, 0.18); }
 .teamnote { margin-top: 8px; font-size: 10px; color: #8a8268; letter-spacing: 1px; }
+.coop { margin-top: 18px; display: flex; gap: 10px; justify-content: center; align-items: center; }
+.coop-or { font-size: 11px; color: #8a8268; }
+.cbtn {
+  font-family: inherit; font-size: 11px; font-weight: bold; letter-spacing: 1px;
+  background: none; border: 1px solid var(--hud-dim); color: var(--hud);
+  padding: 7px 14px; cursor: pointer;
+}
+.cbtn:hover { background: rgba(200, 209, 120, 0.18); }
+#joinCode {
+  font-family: inherit; font-size: 13px; font-weight: bold; letter-spacing: 3px;
+  width: 76px; text-align: center; text-transform: uppercase;
+  background: rgba(10, 12, 6, 0.6); border: 1px solid var(--hud-dim); color: #fff;
+  padding: 6px 4px; outline: none;
+}
+#netStatus { margin-top: 10px; font-size: 11px; letter-spacing: 1px; color: var(--hud); min-height: 14px; }
 #matchScore { font-family: Impact, "Arial Narrow Bold", sans-serif; font-size: 40px; margin: 10px 0; color: var(--hud); }
 #matchStats { font-size: 13px; color: #c8c2a8; margin-bottom: 26px; }
 #againBtn {

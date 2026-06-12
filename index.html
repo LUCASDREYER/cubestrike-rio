@@ -6,7 +6,7 @@
 <title>CUBESTRIKE: RIO — browser tactical FPS</title>
 <link rel="icon" href="data:,">
 <link rel="stylesheet" href="style.css">
-<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}</script>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","peerjs":"https://cdn.jsdelivr.net/npm/peerjs@1.5.5/+esm"}}</script>
 </head>
 <body>
 <canvas id="game"></canvas>
@@ -55,6 +55,13 @@
       <div><b>ENEMIES</b><button class="tbtn" id="enemyMinus">&minus;</button><span id="enemyN">5</span><button class="tbtn" id="enemyPlus">+</button></div>
     </div>
     <div class="teamnote">team sizes up to 5v5 &mdash; applies from the next round</div>
+    <div class="coop">
+      <button class="cbtn" id="hostBtn">CREATE ROOM</button>
+      <span class="coop-or">ou</span>
+      <input id="joinCode" placeholder="CODE" maxlength="4" autocomplete="off" spellcheck="false">
+      <button class="cbtn" id="joinBtn">JOIN</button>
+    </div>
+    <div id="netStatus"></div>
     <p class="note">Desktop + mouse required. All code and "assets" are original &mdash; no Valve content.</p>
   </div>
 </div>
