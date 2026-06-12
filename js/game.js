@@ -1805,6 +1805,12 @@ els.hostBtn.addEventListener('click', (e) => {
     (err) => setNetStatus(`erro de rede: ${err}`),
   );
 });
+const NET_ERRORS = {
+  'peer-unavailable': 'sala não encontrada — confira o código (o host criou a sala?)',
+  timeout: 'conexão falhou (firewall/rede bloqueando WebRTC?) — tente outra rede ou navegador',
+  failed: 'conexão falhou (firewall/rede bloqueando WebRTC?) — tente outra rede ou navegador',
+  network: 'sem conexão com o servidor de sinalização — verifique a internet',
+};
 els.joinBtn.addEventListener('click', (e) => {
   e.stopPropagation();
   if (net.active || state !== 'menu') return;
@@ -1814,7 +1820,11 @@ els.joinBtn.addEventListener('click', (e) => {
     return;
   }
   setNetStatus('conectando...');
-  net.join(code, (err) => setNetStatus(`erro: ${err}`));
+  net.join(
+    code,
+    (err) => setNetStatus(NET_ERRORS[err] ?? `erro: ${err}`),
+    (stage) => setNetStatus(`conectando... (${stage})`),
+  );
 });
 els.joinCode.addEventListener('click', (e) => e.stopPropagation());
 if (location.hash.length === 5) els.joinCode.value = location.hash.slice(1).toUpperCase();

@@ -8,6 +8,20 @@ const Peer = PeerNS.Peer ?? PeerNS.default;
 const PREFIX = 'cubestrike-rio-';
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no 0/O/1/I
 
+// STUN alone fails between different browsers on one machine (Chrome's mDNS
+// candidates) and across strict NATs — the free TURN relays give a fallback.
+const RTC_CONFIG = {
+  iceServers: [
+    { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] },
+    {
+      urls: ['turn:openrelay.metered.ca:80', 'turn:openrelay.metered.ca:443', 'turn:openrelay.metered.ca:443?transport=tcp'],
+      username: 'openrelayproject',
+      credential: 'openrelayproject',
+    },
+  ],
+};
+const PEER_OPTS = { config: RTC_CONFIG };
+
 export const net = {
   role: 'off', // 'off' | 'host' | 'guest'
   peer: null,
@@ -27,7 +41,7 @@ export const net = {
   host(onCode, onError) {
     let code = '';
     for (let i = 0; i < 4; i++) code += CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)];
-    this.peer = new Peer(PREFIX + code);
+    this.peer = new Peer(PREFIX + code, PEER_OPTS);
     this.peer.on('open', () => { this.role = 'host'; onCode(code); });
     this.peer.on('error', (e) => onError(e.type));
     this.peer.on('connection', (conn) => {
@@ -42,13 +56,22 @@ export const net = {
     });
   },
 
-  join(code, onError) {
-    this.peer = new Peer();
+  join(code, onError, onProgress = () => {}) {
+    this.peer = new Peer(PEER_OPTS);
     this.peer.on('error', (e) => onError(e.type));
     this.peer.on('open', () => {
+      onProgress('signaling');
       const conn = this.peer.connect(PREFIX + code.toUpperCase(), { reliable: true });
       this.hostConn = conn;
-      conn.on('open', () => { this.role = 'guest'; this._route({ t: 'connected' }, 'host'); });
+      let opened = false;
+      conn.on('iceStateChanged', (s) => { if (!opened) onProgress(s); });
+      conn.on('error', (e) => onError(e.type ?? 'connection'));
+      setTimeout(() => { if (!opened && this.role !== 'guest') onError('timeout'); }, 25000);
+      conn.on('open', () => {
+        opened = true;
+        this.role = 'guest';
+        this._route({ t: 'connected' }, 'host');
+      });
       conn.on('data', (msg) => this._route(msg, 'host'));
       conn.on('close', () => {
         if (this.role === 'guest') { this.role = 'off'; this._route({ t: 'hostlost' }, 'host'); }
